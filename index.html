@@ -871,8 +871,10 @@ function newDraft(){
 }
 function renderEdit(id){
   if(id){
-    const existing = getRecipe(id);
-    editDraft = JSON.parse(JSON.stringify(existing));
+    if(!editDraft || editDraft.id !== id){
+      const existing = getRecipe(id);
+      editDraft = JSON.parse(JSON.stringify(existing));
+    }
   } else if(!editDraft || editDraft._fresh !== true){
     editDraft = newDraft();
     editDraft._fresh = true;
@@ -1645,6 +1647,7 @@ go = function(view, params={}){
   origGo(view, params);
 };
 function history_back(){
+  if(state.view === 'edit') editDraft = null;
   const prev = navHistory.pop();
   if(prev) origGo(prev.view, prev.params); else origGo('home');
 }
@@ -1687,7 +1690,7 @@ function bindEditEvents(app){
     b.onclick = ()=>{ syncEditFields(); editDraft.steps.splice(parseInt(b.dataset.rmStep),1); render(); };
   });
   const cancelBtn = document.getElementById('cancelEdit');
-  if(cancelBtn) cancelBtn.onclick = ()=> history_back();
+  if(cancelBtn) cancelBtn.onclick = ()=>{ editDraft = null; history_back(); };
   const saveBtn = document.getElementById('saveRecipe');
   if(saveBtn) saveBtn.onclick = ()=>{
     syncEditFields();
