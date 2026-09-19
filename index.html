@@ -290,9 +290,10 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 .step-form-block .head span{font-weight:800;color:var(--terracotta);font-size:0.85rem;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-.photo-upload{border:2px dashed var(--beige-dark);border-radius:var(--radius-md);padding:20px;text-align:center;color:var(--brown-soft);font-size:0.85rem;font-weight:700;cursor:pointer;background:var(--ivoire);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.photo-upload{border:2px dashed var(--beige-dark);border-radius:var(--radius-md);padding:20px;text-align:center;color:var(--brown-soft);font-size:0.85rem;font-weight:700;cursor:pointer;background:var(--ivoire);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
 .photo-upload svg{width:32px;height:32px;stroke:var(--brown-soft);fill:none;stroke-width:1.5;}
 .photo-upload img{border-radius:var(--radius-md);max-height:180px;margin:0 auto;object-fit:cover;max-width:100%;}
+.visually-hidden-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 .tag-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border:1.5px solid var(--beige-dark);border-radius:var(--radius-sm);background:var(--ivoire);}
 .tag-input-wrap .tag{background:var(--beige);padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;display:flex;align-items:center;gap:6px;}
 .tag-input-wrap input{border:none;flex:1;min-width:100px;padding:4px;}
@@ -884,7 +885,7 @@ function renderEdit(id){
     <label class="field-label">Photo principale</label>
     <label class="photo-upload" id="mainPhotoLabel">
       ${d.mainImage ? `<img src="${d.mainImage}">` : `${ICONS.photo}<div style="margin-top:8px">Ajouter une photo</div>`}
-      <input type="file" accept="image/*" id="mainPhotoInput" style="display:none">
+      <input type="file" accept="image/*" id="mainPhotoInput" class="visually-hidden-file">
     </label>
   </div>
 
@@ -1104,8 +1105,8 @@ function renderProfile(){
     <div class="ts">Dernière sauvegarde : ${lastBackup}</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-primary" id="exportBackup">Exporter toutes mes recettes</button>
-      <label class="btn btn-outline" style="text-align:center">Importer une sauvegarde
-        <input type="file" accept=".json" id="importBackup" style="display:none">
+      <label class="btn btn-outline" id="importBackupLabel" style="text-align:center">Importer une sauvegarde
+        <input type="file" accept=".json" id="importBackup" class="visually-hidden-file">
       </label>
     </div>
     <p style="font-size:0.78rem;color:var(--brown-soft);margin-top:12px;margin-bottom:0">
@@ -1283,7 +1284,7 @@ function showRatingModal(r){
       <div class="field"><label class="field-label">Commentaire</label><textarea id="ratingComment" placeholder="Ajouter un commentaire…"></textarea></div>
       <div class="field"><label class="field-label">Photo (optionnel)</label>
         <label class="photo-upload" id="ratingPhotoLabel">${ICONS.photo}<div style="margin-top:6px;font-size:0.8rem">Ajouter une photo</div>
-        <input type="file" accept="image/*" id="ratingPhotoInput" style="display:none"></label>
+        <input type="file" accept="image/*" id="ratingPhotoInput" class="visually-hidden-file"></label>
       </div>
       <button class="btn btn-primary btn-block" id="saveRealization">Enregistrer la réalisation</button>
     </div>
@@ -1295,6 +1296,7 @@ function showRatingModal(r){
       b.classList.add('sel');
     };
   });
+  document.getElementById('ratingPhotoLabel').onclick = (e)=>{ e.preventDefault(); document.getElementById('ratingPhotoInput').click(); };
   document.getElementById('ratingPhotoInput').onchange = (e)=>{
     const f = e.target.files[0]; if(!f) return;
     const reader = new FileReader();
@@ -1651,7 +1653,9 @@ function history_back(){
 function bindEditEvents(app){
   const mainPhotoLabel = document.getElementById('mainPhotoLabel');
   if(mainPhotoLabel){
-    document.getElementById('mainPhotoInput').onchange = (e)=>{
+    const mainPhotoInput = document.getElementById('mainPhotoInput');
+    mainPhotoLabel.onclick = (e)=>{ e.preventDefault(); mainPhotoInput.click(); };
+    mainPhotoInput.onchange = (e)=>{
       const f = e.target.files[0]; if(!f) return;
       const reader = new FileReader();
       reader.onload = ()=>{ editDraft.mainImage = reader.result; render(); };
@@ -1806,6 +1810,8 @@ function bindProfileEvents(app){
     toast('Sauvegarde exportée');
   };
   const imp = document.getElementById('importBackup');
+  const impLabel = document.getElementById('importBackupLabel');
+  if(impLabel && imp) impLabel.onclick = (e)=>{ e.preventDefault(); imp.click(); };
   if(imp) imp.onchange = (e)=>{
     const f = e.target.files[0]; if(!f) return;
     const reader = new FileReader();
