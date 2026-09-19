@@ -1296,7 +1296,7 @@ function showRatingModal(r){
       b.classList.add('sel');
     };
   });
-  document.getElementById('ratingPhotoLabel').onclick = (e)=>{ e.preventDefault(); document.getElementById('ratingPhotoInput').click(); };
+  document.getElementById('ratingPhotoLabel').onclick = (e)=>{ if(!e.isTrusted) return; e.preventDefault(); document.getElementById('ratingPhotoInput').click(); };
   document.getElementById('ratingPhotoInput').onchange = (e)=>{
     const f = e.target.files[0]; if(!f) return;
     const reader = new FileReader();
@@ -1654,7 +1654,7 @@ function bindEditEvents(app){
   const mainPhotoLabel = document.getElementById('mainPhotoLabel');
   if(mainPhotoLabel){
     const mainPhotoInput = document.getElementById('mainPhotoInput');
-    mainPhotoLabel.onclick = (e)=>{ e.preventDefault(); mainPhotoInput.click(); };
+    mainPhotoLabel.onclick = (e)=>{ if(!e.isTrusted) return; e.preventDefault(); mainPhotoInput.click(); };
     mainPhotoInput.onchange = (e)=>{
       const f = e.target.files[0]; if(!f) return;
       const reader = new FileReader();
@@ -1811,7 +1811,7 @@ function bindProfileEvents(app){
   };
   const imp = document.getElementById('importBackup');
   const impLabel = document.getElementById('importBackupLabel');
-  if(impLabel && imp) impLabel.onclick = (e)=>{ e.preventDefault(); imp.click(); };
+  if(impLabel && imp) impLabel.onclick = (e)=>{ if(!e.isTrusted) return; e.preventDefault(); imp.click(); };
   if(imp) imp.onchange = (e)=>{
     const f = e.target.files[0]; if(!f) return;
     const reader = new FileReader();
