@@ -910,7 +910,7 @@ function parseFrenchRecipeText(content){
   };
   const HEADER_MAP = {
     'ingredients':'ingredients','ingredient':'ingredients','ingredients necessaires':'ingredients',
-    'instructions':'instructions','preparation':'instructions','preparation et cuisson':'instructions',
+    'instructions':'instructions','preparation et cuisson':'instructions',
     'etapes':'instructions','etape':'instructions','methode':'instructions','realisation':'instructions',
     'notes':'notes','note':'notes','remarques':'notes','remarque':'notes','astuces':'notes','astuce':'notes',
     'nutrition':'nutrition','valeurs nutritionnelles':'nutrition','fiche nutritionnelle':'nutrition','nutrition inco':'nutrition',
@@ -921,8 +921,11 @@ function parseFrenchRecipeText(content){
   };
   function normNum(s){
     if(s==null) return null;
-    s = String(s).replace(/[\u202f\u00a0]/g,'').replace(/\s/g,'').replace(',', '.');
-    const v = parseFloat(s);
+    s = String(s).replace(/[\u202f\u00a0]/g,'');
+    const m = s.match(/\d[\d\s]*[.,]?\d*/);
+    if(!m) return null;
+    const numStr = m[0].replace(/\s/g,'').replace(',', '.');
+    const v = parseFloat(numStr);
     if(isNaN(v)) return null;
     return (v === Math.trunc(v)) ? Math.trunc(v) : v;
   }
@@ -1020,7 +1023,29 @@ function parseFrenchRecipeText(content){
     if(m) return parseInt(m[1]);
     m = text.match(/^(\d+)\s*h\s*(\d+)?/i);
     if(m) return parseInt(m[1])*60 + (m[2]?parseInt(m[2]):0);
+    m = text.match(/(\d+)/);
+    if(m) return parseInt(m[1]);
     return 0;
+  }
+  function parseTempsSection(block){
+    const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
+    let prep=0, cook=0, rest=0, total=0, foundLabel=false;
+    lines.forEach(l=>{
+      const m = l.match(/^([a-zàâäéèêëïîôöùûüç' ]+)\s*:\s*(.+)$/i);
+      if(m){
+        const label = stripAccents(m[1].toLowerCase()).trim();
+        const val = parseTimeToMinutes(m[2]);
+        if(label.startsWith('prep')){ prep = val; foundLabel=true; }
+        else if(label.startsWith('cuisson')){ cook = val; foundLabel=true; }
+        else if(label.startsWith('repos')){ rest = val; foundLabel=true; }
+        else if(label.startsWith('total')){ total = val; foundLabel=true; }
+      } else if(!foundLabel){
+        const val = parseTimeToMinutes(l);
+        if(val) total = total || val;
+      }
+    });
+    if(!prep && !cook && !rest && total) cook = total;
+    return {prep, cook, rest};
   }
   function parseCategory(text){
     const parts = text.split(',').map(p=>p.trim()).filter(Boolean);
@@ -1029,8 +1054,35 @@ function parseFrenchRecipeText(content){
     return {category: CATEGORY_MAP[first] || 'Plat', tags};
   }
 
-  // Découpage en sections, tolérant sur les intitulés
+  // Découpage en sections, tolérant sur les intitulés (correspondance par préfixe :
+  // "Fiche nutritionnelle INCO — pour 100 g" est reconnu via la clé "fiche nutritionnelle", etc.)
+  // Une ligne du type "Libellé: valeur" (ex. "Préparation: 15 min") n'est PAS un titre de
+  // section, même si elle commence par un mot-clé — seule la correspondance exacte compte alors.
+  function matchHeader(norm, rawTrimmed){
+    if(HEADER_MAP[norm]) return HEADER_MAP[norm];
+    if(/:\s*\S/.test(rawTrimmed)) return null;
+    const keys = Object.keys(HEADER_MAP).sort((a,b)=>b.length-a.length);
+    for(const k of keys){ if(norm.startsWith(k)) return HEADER_MAP[k]; }
+    return null;
+  }
   const lines = content.split('\n');
+  // Si le titre et l'intitulé de la section suivante sont collés sur la même ligne
+  // (ex. "Mon Plat Ingrédients"), on les sépare avant analyse.
+  {
+    const firstIdx = lines.findIndex(l=>l.trim());
+    if(firstIdx !== -1){
+      const words = lines[firstIdx].trim().split(/\s+/);
+      for(let cut=1; cut<words.length; cut++){
+        const tail = words.slice(cut).join(' ');
+        const tailNorm = stripAccents(tail.toLowerCase()).replace(/[:•]+$/,'').trim();
+        if(HEADER_MAP[tailNorm]){
+          const head = words.slice(0,cut).join(' ');
+          lines.splice(firstIdx, 1, head, tail);
+          break;
+        }
+      }
+    }
+  }
   let title = '';
   const sections = {};
   let current = null, buffer = [];
@@ -1041,14 +1093,15 @@ function parseFrenchRecipeText(content){
     const norm = stripAccents(trimmed.toLowerCase()).replace(/[:•]+$/,'').trim();
     if(!titleFound){
       if(trimmed){
-        if(HEADER_MAP[norm]){ /* la première ligne non vide est déjà un intitulé : pas de titre explicite */ }
+        if(matchHeader(norm, trimmed)){ /* la première ligne non vide est déjà un intitulé : pas de titre explicite */ }
         else { title = trimmed; titleFound = true; continue; }
       }
       continue;
     }
-    if(HEADER_MAP[norm] && trimmed.length < 40){
+    const hdr = matchHeader(norm, trimmed);
+    if(hdr && trimmed.length < 55){
       flush();
-      current = HEADER_MAP[norm];
+      current = hdr;
       continue;
     }
     if(current) buffer.push(rawLine);
@@ -1080,8 +1133,7 @@ function parseFrenchRecipeText(content){
     else { servings = 1; servingsNote = "Quantité telle qu'indiquée : " + portionsText; }
   } else { servings = 2; }
 
-  const timeText = sections.temps ? (sections.temps.split('\n').find(l=>l.trim())||'').trim() : '';
-  const totalMinutes = parseTimeToMinutes(timeText);
+  const tempsResult = sections.temps ? parseTempsSection(sections.temps) : {prep:0, cook:0, rest:0};
 
   const catText = sections.categories ? (sections.categories.split('\n').find(l=>l.trim())||'Plat').trim() : 'Plat';
   const {category, tags} = parseCategory(catText);
@@ -1093,7 +1145,7 @@ function parseFrenchRecipeText(content){
   return {
     title: title || '', category, tags, difficulty:'Moyen',
     referenceServings: servings, servingUnit,
-    prepTime:0, cookingTime: totalMinutes, restingTime:0,
+    prepTime: tempsResult.prep, cookingTime: tempsResult.cook, restingTime: tempsResult.rest,
     ingredients, steps, nutrition,
     personalComment: commentParts.join(' ').trim(),
   };
@@ -1993,7 +2045,9 @@ function bindEditEvents(app){
         if(parsed.tags && parsed.tags.length) editDraft.tags = parsed.tags;
         if(parsed.referenceServings) editDraft.referenceServings = parsed.referenceServings;
         if(parsed.servingUnit) editDraft.servingUnit = parsed.servingUnit;
+        if(parsed.prepTime) editDraft.prepTime = parsed.prepTime;
         if(parsed.cookingTime) editDraft.cookingTime = parsed.cookingTime;
+        if(parsed.restingTime) editDraft.restingTime = parsed.restingTime;
         if(parsed.ingredients && parsed.ingredients.length) editDraft.ingredients = parsed.ingredients.map(i=>({id:uid(), ...i}));
         if(parsed.steps && parsed.steps.length) editDraft.steps = parsed.steps.map(s=>({id:uid(), ...s}));
         if(parsed.nutrition){
