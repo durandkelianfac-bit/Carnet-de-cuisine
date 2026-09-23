@@ -165,6 +165,9 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 /* ---------- Recipe detail ---------- */
 .detail-hero{position:relative;height:280px;border-radius:0 0 var(--radius-lg) var(--radius-lg);overflow:hidden;margin:0 -16px;background:linear-gradient(135deg,var(--beige),var(--beige-dark));}
 .detail-hero img{width:100%;height:100%;object-fit:cover;}
+.detail-hero-photo-label{display:block;width:100%;height:100%;cursor:pointer;}
+.detail-hero-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--brown-soft);gap:6px;font-weight:700;font-size:0.85rem;}
+.detail-hero-placeholder svg{width:36px;height:36px;stroke:var(--brown-soft);fill:none;stroke-width:1.5;}
 .detail-hero .top-actions{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:3;}
 .detail-hero .top-actions .icon-btn{background:rgba(255,255,255,0.9);}
 .detail-body{padding-top:20px;}
@@ -316,7 +319,7 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="#" id="logoHomeLink" style="display:flex;align-items:center;gap:12px;flex:1;text-decoration:none;color:inherit;cursor:pointer">
+    <a href="#" id="logoHomeLink" style="display:flex;align-items:center;justify-content:center;gap:12px;flex:1;text-decoration:none;color:inherit;cursor:pointer">
       <svg class="logo" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#C1652F"/><path d="M50 20c-9 0-16 6-18 14-7 1-12 7-12 14 0 6 4 11 9 13v9h42v-9c5-2 9-7 9-13 0-7-5-13-12-14-2-8-9-14-18-14z" fill="#FBF3E7"/><rect x="38" y="70" width="24" height="6" rx="2" fill="#FBF3E7"/></svg>
       <div class="brand">Carnet de Cuisine</div>
     </a>
@@ -368,6 +371,9 @@ const MENU_KEY = 'mcc_menu_v1';
 const META_KEY = 'mcc_meta_v1';
 const UNITS = ['g','kg','ml','cl','l','c. à café','c. à soupe','pincée','tranche','sachet',''];
 const CATEGORIES = ['Entrée','Plat','Dessert','Sauce','Accompagnement','Apéritif','Petit-déjeuner','Boisson','Boulangerie','Pâtisserie'];
+const SUGGESTED_TAGS = ['Français','Italien','Espagnol','Mexicain','Asiatique','Japonais','Indien','Oriental','Américain',
+  'Végétarien','Végan','Sans gluten','Rapide','Économique','Fait maison','Léger','Épicé','Sucré-salé',
+  'Confort food','Fêtes','Été','Hiver','Enfants','Healthy','Fromage','Mijoté','Grillé'];
 const QUICK_FILTERS = ['Tout','Entrées','Plats','Desserts','Sauces','Accompagnements','Apéritifs'];
 
 function uid(){ return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -734,7 +740,10 @@ function renderDetail(id){
   const avg = avgRating(r);
   return `
   <div class="detail-hero">
-    ${r.mainImage?`<img src="${r.mainImage}">`:''}
+    <label class="detail-hero-photo-label" id="detailPhotoLabel">
+      ${r.mainImage?`<img src="${r.mainImage}">`:`<div class="detail-hero-placeholder">${ICONS.photo}<div>Ajouter une photo</div></div>`}
+      <input type="file" accept="image/*" id="detailPhotoInput" class="visually-hidden-file">
+    </label>
     <div class="top-actions">
       <button class="icon-btn" data-back="1">${ICONS.back}</button>
       <div style="display:flex;gap:8px">
@@ -751,13 +760,13 @@ function renderDetail(id){
     </div>
 
     <div class="detail-stats">
-      <div class="stat"><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
+      <div class="stat" id="ratingStat" style="cursor:pointer" title="Cliquer pour noter"><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
       <div class="stat"><div class="val">${(r.realizations||[]).length}</div><div class="lbl">Réalisations</div></div>
       <div class="stat"><div class="val">${totalTime(r)}</div><div class="lbl">Min. total</div></div>
-      <div class="stat"><div class="val">${r.nutrition && r.nutrition.finalWeight && r.nutrition.kcal100 ? Math.round((r.nutrition.kcal100*r.nutrition.finalWeight/100)/serv) : '—'}</div><div class="lbl">kcal/portion</div></div>
+      <div class="stat"><div class="val">${r.nutrition && r.nutrition.finalWeight && r.nutrition.kcal100 ? Math.round((r.nutrition.kcal100*r.nutrition.finalWeight/100)/r.referenceServings) : '—'}</div><div class="lbl">kcal/portion</div></div>
     </div>
 
-    <button class="btn btn-primary btn-block" id="startCooking" style="padding:17px;font-size:1.05rem">${ICONS.play} COMMENCER LA RECETTE</button>
+    <button class="btn btn-primary btn-block" id="startCooking" style="padding:11px;font-size:0.92rem">${ICONS.play} Commencer la recette</button>
 
     <div class="servings-selector">
       <button data-serv-delta="-${servingStep(servingUnitOf(r))}">−</button>
@@ -819,7 +828,8 @@ function renderNutritionTable(r, serv){
   const per100 = n.kcal100 || 0;
   const weight = n.finalWeight || 0;
   const totalKcal = weight ? Math.round(per100*weight/100) : null;
-  const perServ = totalKcal ? Math.round(totalKcal/serv) : null;
+  const refServ = r.referenceServings || serv || 1;
+  const perServ = totalKcal ? Math.round(totalKcal/refServ) : null;
   return `
   <table class="nutrition-table">
     <tr><td><b>Énergie</b></td><td>${n.kcal100||'—'} kcal / ${n.kj100||'—'} kJ (pour 100 g)</td></tr>
@@ -830,7 +840,7 @@ function renderNutritionTable(r, serv){
     <tr><td>Fibres</td><td>${n.fiber100??'—'} g</td></tr>
     <tr><td>Protéines</td><td>${n.protein100??'—'} g</td></tr>
     <tr><td>Sel</td><td>${n.salt100??'—'} g</td></tr>
-    ${perServ?`<tr><td><b>Estimation / personne (${serv} pers.)</b></td><td>${perServ} kcal</td></tr>`:''}
+    ${perServ?`<tr><td><b>Estimation / personne (${refServ} pers. de référence)</b></td><td>${perServ} kcal</td></tr>`:''}
   </table>`;
 }
 
@@ -1207,6 +1217,10 @@ function renderEdit(id){
       ${d.tags.map(t=>`<span class="tag">${escapeHtml(t)} <button data-rmtag="${escapeHtml(t)}" style="color:var(--brown-soft)">×</button></span>`).join('')}
       <input type="text" id="tagInput" placeholder="Ajouter un tag + Entrée">
     </div>
+    <select id="tagSelect" style="margin-top:8px">
+      <option value="">— Ou choisir un tag suggéré —</option>
+      ${SUGGESTED_TAGS.filter(t=>!d.tags.includes(t)).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+    </select>
   </div>
 
   <div class="two-col">
@@ -1354,12 +1368,13 @@ function renderShopping(){
     ${grouped[aisle].map(it=>shopItemHTML(it,false)).join('')}
   `).join('')}
   ${bought.length ? `<div class="shop-section-title">Acheté</div>
-    ${bought.map(it=>shopItemHTML(it,true)).join('')}` : ''}
+    ${bought.map(it=>shopItemHTML(it,true)).join('')}
+    <button class="btn btn-outline btn-block" id="clearBought" style="margin-top:10px">Vider les achetés</button>` : ''}
   <div class="add-manual">
     <input type="text" id="manualShopInput" placeholder="Ajouter un élément…">
     <button class="btn btn-primary btn-sm" id="addManualShop">${ICONS.plus}</button>
   </div>
-  ${toBuy.length||bought.length ? `<button class="btn btn-outline btn-block" id="clearShopping" style="margin-top:20px">Vider la liste</button>`:''}
+  ${toBuy.length||bought.length ? `<button class="btn btn-outline btn-block" id="clearShopping" style="margin-top:20px">Tout vider (à acheter + acheté)</button>`:''}
   `;
 }
 
@@ -1478,20 +1493,30 @@ async function requestWakeLock(){
 }
 function releaseWakeLock(){ try{ wakeLock && wakeLock.release(); wakeLock=null; }catch(e){} }
 
+let audioCtx = null;
+function ensureAudioContext(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }catch(e){}
+}
 function beep(){
   try{
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    for(let i=0;i<3;i++){
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = 880; o.type='sine';
-      const t0 = ctx.currentTime + i*0.35;
-      g.gain.setValueAtTime(0.001, t0);
-      g.gain.exponentialRampToValueAtTime(0.3, t0+0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0+0.3);
-      o.start(t0); o.stop(t0+0.32);
+    ensureAudioContext();
+    if(audioCtx){
+      for(let i=0;i<3;i++){
+        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        o.frequency.value = 880; o.type='sine';
+        const t0 = audioCtx.currentTime + i*0.35;
+        g.gain.setValueAtTime(0.001, t0);
+        g.gain.exponentialRampToValueAtTime(0.3, t0+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t0+0.3);
+        o.start(t0); o.stop(t0+0.32);
+      }
     }
   }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]); }catch(e){}
   if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
 }
 
@@ -1516,6 +1541,7 @@ function createTimerObject(id, label, endTime, alreadyDone){
   return timer;
 }
 function addTimer(minutes, label){
+  ensureAudioContext(); // débloque le son pendant qu'on a un vrai geste utilisateur
   const id = uid();
   const endTime = Date.now() + Math.round(minutes*60*1000);
   const timer = createTimerObject(id, label || (minutes+' min'), endTime);
@@ -1579,7 +1605,14 @@ function renderCookOverlay(){
   const idx = state.cooking.stepIndex;
   const step = r.steps[idx];
   const total = r.steps.length;
-  const durations = [...step.content.matchAll(/(\d+)\s*(min(?:ute)?s?)\b/gi)].map(m=>parseInt(m[1]));
+  const durMatches = [...step.content.matchAll(/(\d+)\s*(heures?|h\b|min(?:ute)?s?|sec(?:onde)?s?)\b/gi)];
+  const durations = durMatches.map(m=>{
+    const val = parseInt(m[1]);
+    const unit = m[2].toLowerCase();
+    if(unit.startsWith('h')) return {minutes: val*60, label: val+' H'};
+    if(unit.startsWith('min')) return {minutes: val, label: val+' MIN'};
+    return {minutes: val/60, label: val+' SEC'};
+  });
 
   root.innerHTML = `
   <div class="cooking-overlay">
@@ -1597,7 +1630,7 @@ function renderCookOverlay(){
       <h2>${escapeHtml(step.title)}</h2>
       <p>${escapeHtml(step.content)}</p>
       ${durations.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-        ${durations.map(d=>`<button class="cooking-timer-suggest" data-launchtimer="${d}">${ICONS.clock} ${d} MIN</button>`).join('')}
+        ${durations.map(d=>`<button class="cooking-timer-suggest" data-launchtimer="${d.minutes}">${ICONS.clock} ${d.label}</button>`).join('')}
       </div>` : ''}
     </div>
     <div class="cooking-nav">
@@ -1613,7 +1646,7 @@ function renderCookOverlay(){
     if(idx===total-1){ finishCooking(); } else { state.cooking.stepIndex++; persistCookingState(); renderCookOverlay(); }
   };
   root.querySelectorAll('[data-launchtimer]').forEach(b=>{
-    b.onclick = ()=> addTimer(parseInt(b.dataset.launchtimer), step.title);
+    b.onclick = ()=> addTimer(parseFloat(b.dataset.launchtimer), step.title);
   });
   document.getElementById('ingPanelBtn').onclick = ()=> showIngredientsPanel(r);
 }
@@ -1659,6 +1692,10 @@ function showRatingModal(r){
         <input type="file" accept="image/*" id="ratingPhotoInput" class="visually-hidden-file"></label>
       </div>
       <button class="btn btn-primary btn-block" id="saveRealization">Enregistrer la réalisation</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-outline btn-sm" style="flex:1" id="ratingModalShare">Partager pour avis</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" id="ratingModalAddGuest">+ Avis reçu</button>
+      </div>
     </div>
   </div>`;
   document.getElementById('starPicker').querySelectorAll('button').forEach(b=>{
@@ -1683,12 +1720,15 @@ function showRatingModal(r){
     // met à jour note personnelle = moyenne pondérée simple si pas encore définie manuellement
     const avg = avgRating(r);
     if(avg !== null) r.personalRating = Math.round(avg*10)/10;
+    if(comment) r.personalComment = comment; // remonte dans "Mon commentaire"
     r.updatedAt = nowISO();
     persistRecipes();
     root.innerHTML = '';
     go('detail', {id:r.id});
     toast('Réalisation enregistrée !');
   };
+  document.getElementById('ratingModalShare').onclick = ()=> showShareForReviewModal(r);
+  document.getElementById('ratingModalAddGuest').onclick = ()=> showAddGuestReviewModal(r);
   document.getElementById('ratingOverlay').onclick = (e)=>{ if(e.target.id==='ratingOverlay'){ root.innerHTML=''; } };
 }
 
@@ -1757,9 +1797,49 @@ function b64decode(str){
 }
 function buildGuestLink(r){
   const meta = load(META_KEY, {});
-  const payload = {id:r.id, title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||''};
+  const payload = {
+    id:r.id, title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
+    referenceServings:r.referenceServings, servingUnit:r.servingUnit,
+    prepTime:r.prepTime, cookingTime:r.cookingTime, restingTime:r.restingTime,
+    ingredients:r.ingredients, steps:r.steps, nutrition:r.nutrition,
+  };
   const base = location.href.split('#')[0];
   return base + '#guest=' + b64encode(payload);
+}
+/* Reconstruit un texte de recette au même format que celui attendu par
+   "Coller une recette entière", pour que l'invité puisse copier-coller
+   et importer la recette directement dans son propre Carnet de Cuisine. */
+function recipeToPasteText(r){
+  const lines = [];
+  lines.push(r.title || 'Recette', '', 'Ingrédients', '');
+  (r.ingredients||[]).forEach(i=>{
+    lines.push(i.quantity!=null ? `${i.quantity}${i.unit?(' '+i.unit):''} ${i.name}` : i.name);
+  });
+  lines.push('', 'Préparation et cuisson', '');
+  (r.steps||[]).forEach(s=>{ lines.push((s.title||'Étape')+':', s.content||'', ''); });
+  lines.push('Temps total', '');
+  if(r.prepTime) lines.push('Préparation: '+r.prepTime+' min');
+  if(r.cookingTime) lines.push('Cuisson: '+r.cookingTime+' min');
+  const total = (r.prepTime||0)+(r.cookingTime||0)+(r.restingTime||0);
+  if(total) lines.push('Total: '+total+' min');
+  const n = r.nutrition||{};
+  if(n.finalWeight && n.kcal100){
+    lines.push('', 'Kilocalories totales du plat', '', '≈ '+Math.round(n.kcal100*n.finalWeight/100)+' kcal');
+  }
+  if(n.kcal100){
+    lines.push('', 'Fiche nutritionnelle INCO — pour 100 g', '');
+    lines.push(`Énergie: ${n.kcal100} kcal / ${n.kj100||'—'} kJ`);
+    if(n.fat100!=null) lines.push(`Lipides: ${n.fat100} g${n.satfat100!=null?` (dont acides gras saturés: ${n.satfat100} g)`:''}`);
+    if(n.carbs100!=null) lines.push(`Glucides: ${n.carbs100} g${n.sugar100!=null?` (dont sucres: ${n.sugar100} g)`:''}`);
+    if(n.fiber100!=null) lines.push(`Fibres: ${n.fiber100} g`);
+    if(n.protein100!=null) lines.push(`Protéines: ${n.protein100} g`);
+    if(n.salt100!=null) lines.push(`Sel: ${n.salt100} g`);
+  }
+  lines.push('', 'Portions', '', servingLabel(r.referenceServings, servingUnitOf(r)));
+  if(r.category || (r.tags&&r.tags.length)){
+    lines.push('', 'Catégories', '', [r.category, ...(r.tags||[])].filter(Boolean).join(', '));
+  }
+  return lines.join('\n');
 }
 function showShareForReviewModal(r){
   const link = buildGuestLink(r);
@@ -1855,10 +1935,24 @@ function showAddGuestReviewModal(r){
 /* ---------------- GUEST STANDALONE PAGE ---------------- */
 function renderGuestPage(payload){
   document.body.innerHTML = `
-  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px;max-width:480px;margin:0 auto;text-align:center">
-    <svg viewBox="0 0 100 100" style="width:56px;height:56px;margin:0 auto 18px"><circle cx="50" cy="50" r="48" fill="#C1652F"/><path d="M50 20c-9 0-16 6-18 14-7 1-12 7-12 14 0 6 4 11 9 13v9h42v-9c5-2 9-7 9-13 0-7-5-13-12-14-2-8-9-14-18-14z" fill="#FBF3E7"/><rect x="38" y="70" width="24" height="6" rx="2" fill="#FBF3E7"/></svg>
-    <h1 class="serif" style="font-size:1.5rem;margin:0 0 6px">${escapeHtml(payload.title)}</h1>
-    <p style="color:var(--brown-soft);margin:0 0 22px">Merci d'avoir goûté cette recette !</p>
+  <div style="min-height:100vh;padding:28px 20px 60px;max-width:480px;margin:0 auto">
+    <div style="text-align:center">
+      <svg viewBox="0 0 100 100" style="width:56px;height:56px;margin:0 auto 18px"><circle cx="50" cy="50" r="48" fill="#C1652F"/><path d="M50 20c-9 0-16 6-18 14-7 1-12 7-12 14 0 6 4 11 9 13v9h42v-9c5-2 9-7 9-13 0-7-5-13-12-14-2-8-9-14-18-14z" fill="#FBF3E7"/><rect x="38" y="70" width="24" height="6" rx="2" fill="#FBF3E7"/></svg>
+      <h1 class="serif" style="font-size:1.5rem;margin:0 0 6px">${escapeHtml(payload.title)}</h1>
+      <p style="color:var(--brown-soft);margin:0 0 20px">Une recette du Carnet de Cuisine, partagée avec toi !</p>
+    </div>
+    ${(payload.ingredients&&payload.ingredients.length) || (payload.steps&&payload.steps.length) ? `
+    <div class="card" style="padding:18px;text-align:left;margin-bottom:16px">
+      <button class="btn btn-outline btn-block" id="gToggleRecipe">Voir la recette</button>
+      <div id="gRecipeContent" style="display:none;margin-top:14px">
+        ${payload.ingredients&&payload.ingredients.length ? `<div class="field-label">Ingrédients (pour ${escapeHtml(servingLabel(payload.referenceServings, servingUnitOf(payload)))})</div>
+        <ul style="margin:0 0 14px;padding-left:20px">${payload.ingredients.map(i=>`<li>${i.quantity!=null?`<b>${qtyUnitLabel(i.quantity,i.unit)}</b> `:''}${escapeHtml(i.name)}</li>`).join('')}</ul>` : ''}
+        ${payload.steps&&payload.steps.length ? `<div class="field-label">Préparation</div>
+        ${payload.steps.map(s=>`<p style="margin:0 0 10px"><b>${escapeHtml(s.title||'')}</b> ${escapeHtml(s.content||'')}</p>`).join('')}` : ''}
+        <button class="btn btn-ghost btn-block" id="gCopyRecipe" style="margin-top:8px">📋 Copier la recette</button>
+        <p style="font-size:0.78rem;color:var(--brown-soft);margin:8px 0 0">Si tu as toi aussi le Carnet de Cuisine : colle ce texte dans "Coller une recette entière" en créant une nouvelle recette, elle se remplira toute seule.</p>
+      </div>
+    </div>` : ''}
     <div class="card" style="padding:22px;text-align:left">
       <label class="field-label">Ton prénom</label>
       <input type="text" id="gName" placeholder="Ton prénom" style="margin-bottom:16px">
@@ -1877,6 +1971,19 @@ function renderGuestPage(payload){
       </div>
     </div>
   </div>`;
+  const toggleBtn = document.getElementById('gToggleRecipe');
+  if(toggleBtn) toggleBtn.onclick = ()=>{
+    const el = document.getElementById('gRecipeContent');
+    const showing = el.style.display !== 'none';
+    el.style.display = showing ? 'none' : 'block';
+    toggleBtn.textContent = showing ? 'Voir la recette' : 'Masquer la recette';
+  };
+  const copyRecipeBtn = document.getElementById('gCopyRecipe');
+  if(copyRecipeBtn) copyRecipeBtn.onclick = ()=>{
+    navigator.clipboard.writeText(recipeToPasteText(payload)).then(()=>{
+      copyRecipeBtn.textContent = 'Recette copiée !';
+    });
+  };
   let rating = 8;
   document.getElementById('gStars').querySelectorAll('button').forEach(b=>{
     b.onclick = ()=>{
@@ -1961,6 +2068,23 @@ function postRenderBind(){
   // DETAIL
   const startCook = document.getElementById('startCooking');
   if(startCook) startCook.onclick = ()=> startCookingMode(state.params.id);
+  const ratingStat = document.getElementById('ratingStat');
+  if(ratingStat) ratingStat.onclick = ()=>{
+    const r = getRecipe(state.params.id);
+    if(r) showRatingModal(r);
+  };
+  const detailPhotoLabel = document.getElementById('detailPhotoLabel');
+  if(detailPhotoLabel){
+    const detailPhotoInput = document.getElementById('detailPhotoInput');
+    detailPhotoLabel.onclick = (e)=>{ if(!e.isTrusted) return; e.preventDefault(); detailPhotoInput.click(); };
+    detailPhotoInput.onchange = (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      compressImageFile(f).then(dataUrl=>{
+        const r = getRecipe(state.params.id);
+        if(r){ r.mainImage = dataUrl; persistRecipes(); render(); }
+      }).catch(()=> toast('Impossible de lire cette photo'));
+    };
+  }
   app.querySelectorAll('[data-serv-delta]').forEach(el=>{
     el.onclick = ()=>{
       const id = state.params.id;
@@ -2088,6 +2212,16 @@ function bindEditEvents(app){
       b.onclick = ()=>{ editDraft.tags = editDraft.tags.filter(t=>t!==b.dataset.rmtag); syncEditFields(); render(); };
     });
   }
+  const tagSelect = document.getElementById('tagSelect');
+  if(tagSelect){
+    tagSelect.onchange = ()=>{
+      if(tagSelect.value){
+        syncEditFields();
+        editDraft.tags.push(tagSelect.value);
+        render();
+      }
+    };
+  }
   const addIng = document.getElementById('addIngRow');
   if(addIng) addIng.onclick = ()=>{ syncEditFields(); editDraft.ingredients.push({id:uid(),quantity:'',unit:'g',name:''}); render(); };
   app.querySelectorAll('[data-rmIng]').forEach(b=>{
@@ -2187,8 +2321,16 @@ function bindShoppingEvents(app){
     addManual.onclick = doAdd;
     document.getElementById('manualShopInput').onkeydown = (e)=>{ if(e.key==='Enter') doAdd(); };
   }
+  const clearBoughtBtn = document.getElementById('clearBought');
+  if(clearBoughtBtn) clearBoughtBtn.onclick = ()=>{
+    if(!confirm('Vider tout ce qui est déjà acheté ? Cette action est définitive.')) return;
+    SHOPPING.bought = []; persistShopping(); render();
+  };
   const clearBtn = document.getElementById('clearShopping');
-  if(clearBtn) clearBtn.onclick = ()=>{ SHOPPING = {toBuy:[], bought:[]}; persistShopping(); render(); };
+  if(clearBtn) clearBtn.onclick = ()=>{
+    if(!confirm('Vider toute la liste (à acheter + déjà acheté) ? Cette action est définitive.')) return;
+    SHOPPING = {toBuy:[], bought:[]}; persistShopping(); render();
+  };
 }
 
 /* ---------------- MENU bindings ---------------- */
