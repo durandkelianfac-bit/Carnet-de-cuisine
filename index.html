@@ -1000,8 +1000,7 @@ function renderGuestReviewsBlock(r){
         </div>`).join('')}
     ` : `<p style="margin:0 0 12px;color:var(--brown-soft);font-size:0.88rem">Aucun avis d'invité pour le moment. Partage un lien pour en recevoir.</p>`}
     <div style="display:flex;gap:10px;margin-top:${avg!==null?'14px':'0'}">
-      <button class="btn btn-outline btn-sm" style="flex:1" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>
-      <button class="btn btn-ghost btn-sm" style="flex:1" id="addGuestReview" data-recipeid="${r.id}">+ Avis reçu</button>
+      <button class="btn btn-outline btn-block" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>
     </div>
   </div>`;
 }
@@ -1856,10 +1855,7 @@ function showRatingModal(r){
         <input type="file" accept="image/*" id="ratingPhotoInput" class="visually-hidden-file"></label>
       </div>
       <button class="btn btn-primary btn-block" id="saveRealization">Enregistrer la réalisation</button>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-outline btn-sm" style="flex:1" id="ratingModalShare">Partager pour avis</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1" id="ratingModalAddGuest">+ Avis reçu</button>
-      </div>
+      <button class="btn btn-outline btn-block" id="ratingModalShare" style="margin-top:10px">Partager pour avis</button>
     </div>
   </div>`;
   document.getElementById('starPicker').querySelectorAll('button').forEach(b=>{
@@ -1893,7 +1889,6 @@ function showRatingModal(r){
     toast('Réalisation enregistrée !');
   };
   document.getElementById('ratingModalShare').onclick = ()=> showShareForReviewModal(r);
-  document.getElementById('ratingModalAddGuest').onclick = ()=> showAddGuestReviewModal(r);
   document.getElementById('ratingOverlay').onclick = (e)=>{ if(e.target.id==='ratingOverlay'){ root.innerHTML=''; } };
 }
 
@@ -2037,64 +2032,6 @@ function showShareForReviewModal(r){
     });
   };
   document.getElementById('shareOverlay').onclick = (e)=>{ if(e.target.id==='shareOverlay') root.innerHTML=''; };
-}
-function showAddGuestReviewModal(r){
-  let rating = 8;
-  const root = document.getElementById('modalRoot');
-  root.innerHTML = `
-  <div class="modal-overlay" id="addGuestOverlay">
-    <div class="modal">
-      <h3>Ajouter un avis reçu</h3>
-      <p style="color:var(--brown-soft);margin-top:-8px">Colle ici le message reçu par WhatsApp, SMS ou e-mail — les champs se remplissent automatiquement.</p>
-      <div class="field">
-        <label class="field-label">Coller le message ici</label>
-        <textarea id="guestPaste" placeholder="AVIS RECETTE — ...&#10;Invité : ...&#10;Note : .../10&#10;Commentaire : ..." style="min-height:100px"></textarea>
-      </div>
-      <div class="field"><label class="field-label">Nom de l'invité</label><input type="text" id="guestName" placeholder="Ex. Camille"></div>
-      <div class="star-picker" id="guestStarPicker">
-        ${Array.from({length:11},(_,i)=>`<button data-star="${i}" class="${i===8?'sel':''}">${i}</button>`).join('')}
-      </div>
-      <div class="field"><label class="field-label">Commentaire</label><textarea id="guestComment" placeholder="Ce que l'invité a écrit…"></textarea></div>
-      <button class="btn btn-primary btn-block" id="saveGuestReview">Enregistrer l'avis</button>
-    </div>
-  </div>`;
-  document.getElementById('guestStarPicker').querySelectorAll('button').forEach(b=>{
-    b.onclick = ()=>{
-      rating = parseInt(b.dataset.star);
-      root.querySelectorAll('#guestStarPicker button').forEach(x=>x.classList.remove('sel'));
-      b.classList.add('sel');
-    };
-  });
-  document.getElementById('guestPaste').addEventListener('input', (e)=>{
-    const text = e.target.value;
-    const nameMatch = text.match(/Invité\s*:\s*(.+)/i);
-    const noteMatch = text.match(/Note\s*:\s*(\d{1,2})\s*\/\s*10/i);
-    const commentMatch = text.match(/Commentaire\s*:\s*([\s\S]+)/i);
-    if(nameMatch) document.getElementById('guestName').value = nameMatch[1].trim();
-    if(commentMatch){
-      let c = commentMatch[1].trim();
-      if(c === '(aucun)') c = '';
-      document.getElementById('guestComment').value = c;
-    }
-    if(noteMatch){
-      rating = Math.max(0, Math.min(10, parseInt(noteMatch[1])));
-      root.querySelectorAll('#guestStarPicker button').forEach(x=>{
-        x.classList.toggle('sel', parseInt(x.dataset.star)===rating);
-      });
-    }
-  });
-  document.getElementById('saveGuestReview').onclick = ()=>{
-    const name = document.getElementById('guestName').value.trim();
-    const comment = document.getElementById('guestComment').value.trim();
-    r.guestReviews = r.guestReviews || [];
-    r.guestReviews.unshift({id:uid(), name, rating, comment, date:nowISO()});
-    r.updatedAt = nowISO();
-    persistRecipes();
-    root.innerHTML = '';
-    render();
-    toast('Avis ajouté');
-  };
-  document.getElementById('addGuestOverlay').onclick = (e)=>{ if(e.target.id==='addGuestOverlay') root.innerHTML=''; };
 }
 
 /* ---------------- GUEST STANDALONE PAGE ---------------- */
@@ -2287,8 +2224,6 @@ function postRenderBind(){
   });
   const shareBtn = document.getElementById('shareForReview');
   if(shareBtn) shareBtn.onclick = ()=> showShareForReviewModal(getRecipe(shareBtn.dataset.recipeid));
-  const addGuestBtn = document.getElementById('addGuestReview');
-  if(addGuestBtn) addGuestBtn.onclick = ()=> showAddGuestReviewModal(getRecipe(addGuestBtn.dataset.recipeid));
   app.querySelectorAll('.timer-chip[data-timer]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const mins = parseFloat(el.dataset.timer);
