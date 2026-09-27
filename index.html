@@ -165,7 +165,7 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 /* ---------- Recipe detail ---------- */
 .detail-hero{position:relative;height:280px;border-radius:0 0 var(--radius-lg) var(--radius-lg);overflow:hidden;margin:0 -16px;background:linear-gradient(135deg,var(--beige),var(--beige-dark));}
 .detail-hero img{width:100%;height:100%;object-fit:cover;}
-.detail-hero-photo-label{display:block;width:100%;height:100%;cursor:pointer;}
+.detail-hero-photo-label{display:block;width:100%;height:100%;cursor:pointer;position:relative;z-index:1;}
 .detail-hero-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--brown-soft);gap:6px;font-weight:700;font-size:0.85rem;}
 .detail-hero-placeholder svg{width:36px;height:36px;stroke:var(--brown-soft);fill:none;stroke-width:1.5;}
 .detail-hero .top-actions{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:3;}
@@ -489,15 +489,36 @@ function fbAddGuestReview(recipeId, review){
 }
 /* Écoute les recettes en direct : toute modif (la tienne depuis un autre appareil, ou un avis
    invité) met à jour RECIPES et rafraîchit l'écran automatiquement. */
+/* Remet en forme une recette reçue de Firebase : restaure les tableaux/objets que Firebase
+   supprime silencieusement quand ils sont vides, et écarte toute entrée trop abîmée pour être
+   affichée (évite qu'une seule recette corrompue ne casse le reste de l'app). */
+function sanitizeRecipe(r){
+  if(!r || typeof r !== 'object') return null;
+  if(typeof r.id !== 'string' || !r.id) return null;
+  if(typeof r.title !== 'string') r.title = r.title ? String(r.title) : '';
+  if(!r.title.trim()) return null;
+  r.ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+  r.steps = Array.isArray(r.steps) ? r.steps : [];
+  r.tags = Array.isArray(r.tags) ? r.tags : [];
+  r.guestReviews = Array.isArray(r.guestReviews) ? r.guestReviews : [];
+  r.realizations = Array.isArray(r.realizations) ? r.realizations : [];
+  r.versions = Array.isArray(r.versions) ? r.versions : [];
+  r.nutrition = (r.nutrition && typeof r.nutrition === 'object') ? r.nutrition : {};
+  r.category = r.category || 'Plat';
+  r.referenceServings = r.referenceServings || 1;
+  return r;
+}
 function fbListenRecipes(){
   if(!fbReady || recipesListenerAttached) return;
   recipesListenerAttached = true;
   fbDb.ref('recipes').on('value', snap=>{
     const val = snap.val();
     if(!val) return; // rien en ligne pour l'instant (première utilisation) : on garde le local
-    RECIPES = Object.values(val);
+    const cleaned = Object.values(val).map(sanitizeRecipe).filter(Boolean);
+    if(cleaned.length === 0) return; // ne remplace jamais le local par une liste vide/illisible
+    RECIPES = cleaned;
     save(DB_KEY, RECIPES);
-    try{ render(); }catch(e){}
+    try{ render(); }catch(e){ console.error('Erreur au ré-affichage après synchro', e); }
   }, err=>console.error('Écoute Firebase interrompue', err));
 }
 const isGuestPage = location.hash.startsWith('#guest=');
@@ -650,21 +671,26 @@ function placeholderThumb(){
   return `<div class="thumb">${ICONS.photo}</div>`;
 }
 function recipeCardHTML(r, small){
-  const img = r.mainImage ? `<img class="thumb" src="${r.mainImage}" alt="">` : placeholderThumb();
-  return `
-  <div class="recipe-card" data-open="${r.id}">
-    <div style="position:relative">
-      ${img}
-      <button class="fav-btn ${r.isFavorite?'active':''}" data-fav="${r.id}">${ICONS.heart}</button>
-    </div>
-    <div class="info">
-      <div class="name">${escapeHtml(r.title)}</div>
-      <div class="meta">
-        <span class="rating">★ ${combinedRating(r) !== null ? combinedRating(r).toFixed(1) : '—'}</span>
-        <span>· ${escapeHtml(r.category)}</span>
+  try{
+    const img = r.mainImage ? `<img class="thumb" src="${r.mainImage}" alt="">` : placeholderThumb();
+    return `
+    <div class="recipe-card" data-open="${r.id}">
+      <div style="position:relative">
+        ${img}
+        <button class="fav-btn ${r.isFavorite?'active':''}" data-fav="${r.id}">${ICONS.heart}</button>
       </div>
-    </div>
-  </div>`;
+      <div class="info">
+        <div class="name">${escapeHtml(r.title)}</div>
+        <div class="meta">
+          <span class="rating">★ ${combinedRating(r) !== null ? combinedRating(r).toFixed(1) : '—'}</span>
+          <span>· ${escapeHtml(r.category)}</span>
+        </div>
+      </div>
+    </div>`;
+  }catch(e){
+    console.error('Carte recette illisible, ignorée', r && r.id, e);
+    return '';
+  }
 }
 function escapeHtml(s){
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -680,6 +706,7 @@ function bindCardEvents(root){
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
       const r = getRecipe(el.dataset.fav);
+      if(!r){ toast('Cette recette est introuvable.'); return; }
       r.isFavorite = !r.isFavorite;
       persistRecipes();
       render();
@@ -692,21 +719,29 @@ function render(){
   renderNav();
   const app = document.getElementById('app');
   let html = '';
-  switch(state.view){
-    case 'home': html = renderHome(); break;
-    case 'library': html = renderLibrary(); break;
-    case 'detail': html = renderDetail(state.params.id); break;
-    case 'edit': html = renderEdit(state.params.id); break;
-    case 'shopping': html = renderShopping(); break;
-    case 'menu': html = renderMenu(); break;
-    case 'profile': html = renderProfile(); break;
-    case 'favorites': html = renderFavorites(); break;
-    case 'history': html = renderHistory(state.params.id); break;
-    default: html = renderHome();
+  try{
+    switch(state.view){
+      case 'home': html = renderHome(); break;
+      case 'library': html = renderLibrary(); break;
+      case 'detail': html = renderDetail(state.params.id); break;
+      case 'edit': html = renderEdit(state.params.id); break;
+      case 'shopping': html = renderShopping(); break;
+      case 'menu': html = renderMenu(); break;
+      case 'profile': html = renderProfile(); break;
+      case 'favorites': html = renderFavorites(); break;
+      case 'history': html = renderHistory(state.params.id); break;
+      default: html = renderHome();
+    }
+  }catch(e){
+    console.error('Erreur d\'affichage, retour à l\'accueil', e);
+    state.view = 'home'; state.params = {};
+    try{ toast('Cette recette est illisible ou corrompue.'); }catch(t){}
+    try{ html = renderHome(); }
+    catch(e2){ html = '<div style="padding:40px 20px;text-align:center">Un problème est survenu. Essaie de recharger la page.</div>'; }
   }
   app.innerHTML = `<div class="view">${html}</div>`;
-  bindCardEvents(app);
-  postRenderBind();
+  try{ bindCardEvents(app); }catch(e){ console.error('Erreur de branchement des cartes', e); }
+  try{ postRenderBind(); }catch(e){ console.error('Erreur de branchement des boutons', e); }
 }
 
 /* ---------------- HOME ---------------- */
@@ -2177,7 +2212,10 @@ function postRenderBind(){
     if(el.tagName==='BUTTON' && el.dataset.newrecipe) return;
     el.addEventListener('click', ()=>{
       const target = el.dataset.nav;
-      if(target === 'edit'){ go('edit', {id: el.dataset.editid}); }
+      if(target === 'edit'){
+        if(!el.dataset.editid || !getRecipe(el.dataset.editid)){ toast('Cette recette est introuvable.'); return; }
+        go('edit', {id: el.dataset.editid});
+      }
       else if(target === 'history'){ go('history', {id: el.dataset.histid}); }
       else { go(target); }
     });
