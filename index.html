@@ -314,6 +314,9 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 .menu-list li .t{flex:1;font-weight:700;font-size:0.92rem;}
 .menu-list li .n{color:var(--brown-soft);font-size:0.82rem;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -433,6 +436,79 @@ let SHOPPING = load(SHOP_KEY, {toBuy:[], bought:[]});
 let MENU = load(MENU_KEY, {}); // key "weekOffset|day|slot" -> {recipeId, servings}
 let META = load(META_KEY, {});
 
+/* ---------------- FIREBASE (compte + synchronisation en direct) ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyAIl63dSRYtl3vxpleStc_0Gp2X_UwzLL4",
+  authDomain: "carnet-de-cuisine.firebaseapp.com",
+  databaseURL: "https://carnet-de-cuisine-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "carnet-de-cuisine",
+  storageBucket: "carnet-de-cuisine.firebasestorage.app",
+  messagingSenderId: "1078852091191",
+  appId: "1:1078852091191:web:f0012d41df62a2d8ab6eb2"
+};
+let fbAuth = null, fbDb = null, fbReady = false, isAuthed = false;
+let recipesListenerAttached = false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  fbAuth = firebase.auth();
+  fbDb = firebase.database();
+  fbReady = true;
+}catch(e){ console.error('Firebase indisponible, mode local seul.', e); }
+
+function fbSignIn(email, password){
+  if(!fbReady) return Promise.reject(new Error('Firebase indisponible'));
+  return fbAuth.signInWithEmailAndPassword(email, password);
+}
+function fbSignOut(){ if(fbReady) fbAuth.signOut(); }
+function canEdit(){ return !fbReady || isAuthed; }
+
+/* Pousse une recette vers Firebase (nécessite d'être connecté — sinon la règle refuse). */
+function fbSaveRecipe(r){
+  if(!fbReady || !isAuthed || !fbDb) return;
+  try{ fbDb.ref('recipes/'+r.id).set(r).catch(e=>console.error('Sync recette échouée', e)); }
+  catch(e){ console.error('Sync recette échouée', e); }
+}
+function fbDeleteRecipe(id){
+  if(!fbReady || !isAuthed || !fbDb) return;
+  try{ fbDb.ref('recipes/'+id).remove().catch(e=>console.error('Suppression distante échouée', e)); }
+  catch(e){ console.error('Suppression distante échouée', e); }
+}
+/* Publie TOUTES les recettes locales sur Firebase (à faire une fois après connexion sur l'appareil "maître"). */
+function fbPublishAllRecipes(){
+  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
+  const updates = {};
+  RECIPES.forEach(r=>{ updates[r.id] = r; });
+  try{ return fbDb.ref('recipes').set(updates); }
+  catch(e){ return Promise.reject(e); }
+}
+/* Un invité peut ajouter un avis même sans être connecté (autorisé par les règles). */
+function fbAddGuestReview(recipeId, review){
+  if(!fbReady || !fbDb) return Promise.reject(new Error('Firebase indisponible'));
+  try{ return fbDb.ref('recipes/'+recipeId+'/guestReviews/'+review.id).set(review); }
+  catch(e){ return Promise.reject(e); }
+}
+/* Écoute les recettes en direct : toute modif (la tienne depuis un autre appareil, ou un avis
+   invité) met à jour RECIPES et rafraîchit l'écran automatiquement. */
+function fbListenRecipes(){
+  if(!fbReady || recipesListenerAttached) return;
+  recipesListenerAttached = true;
+  fbDb.ref('recipes').on('value', snap=>{
+    const val = snap.val();
+    if(!val) return; // rien en ligne pour l'instant (première utilisation) : on garde le local
+    RECIPES = Object.values(val);
+    save(DB_KEY, RECIPES);
+    try{ render(); }catch(e){}
+  }, err=>console.error('Écoute Firebase interrompue', err));
+}
+const isGuestPage = location.hash.startsWith('#guest=');
+if(fbReady && !isGuestPage){
+  fbAuth.onAuthStateChanged(user=>{
+    isAuthed = !!user;
+    fbListenRecipes(); // la lecture est publique, on écoute dans tous les cas
+    try{ render(); }catch(e){}
+  });
+}
+
 function persistRecipes(){ save(DB_KEY, RECIPES); }
 function persistShopping(){ save(SHOP_KEY, SHOPPING); }
 function persistMenu(){ save(MENU_KEY, MENU); }
@@ -542,7 +618,7 @@ function smartUnit(qty, unit){
 }
 function qtyUnitLabel(qty, unit){
   const r = smartUnit(qty, unit);
-  return (fmtQty(r.qty) + ' ' + (r.unit||'')).trim();
+  return (fmtQty(r.qty) + ' ' + escapeHtml(r.unit||'')).trim();
 }
 const SERVING_UNIT_LABELS = {
   personnes: {singular:'personne', plural:'personnes'},
@@ -554,7 +630,7 @@ const SERVING_UNIT_LABELS = {
 function servingUnitOf(r){ return (r && r.servingUnit) || 'personnes'; }
 function servingLabel(serv, unit){
   unit = unit || 'personnes';
-  const def = SERVING_UNIT_LABELS[unit] || {singular:unit, plural:unit};
+  const def = SERVING_UNIT_LABELS[unit] || {singular:escapeHtml(unit), plural:escapeHtml(unit)};
   const word = serv > 1 ? def.plural : def.singular;
   return `${fmtQty(serv)} ${word}`;
 }
@@ -585,7 +661,7 @@ function recipeCardHTML(r, small){
       <div class="name">${escapeHtml(r.title)}</div>
       <div class="meta">
         <span class="rating">★ ${combinedRating(r) !== null ? combinedRating(r).toFixed(1) : '—'}</span>
-        <span>· ${r.category}</span>
+        <span>· ${escapeHtml(r.category)}</span>
       </div>
     </div>
   </div>`;
@@ -652,7 +728,7 @@ function renderHome(){
   <div class="featured" data-open="${featured.id}">
     ${featured.mainImage?`<img src="${featured.mainImage}">`:''}
     <div class="featured-content">
-      <span class="pill">${featured.category} · ${featured.tags.slice(0,2).join(' · ')}</span>
+      <span class="pill">${escapeHtml(featured.category)} · ${featured.tags.slice(0,2).map(escapeHtml).join(' · ')}</span>
       <h2>${escapeHtml(featured.title)}</h2>
       <div class="featured-meta">
         <span>★ ${combinedRating(featured)!==null?combinedRating(featured).toFixed(1):'—'}/10</span>
@@ -705,14 +781,14 @@ function renderLibrary(){
   const list = filteredRecipes();
   return `
   <div class="top-header-bar"><h2>Mes recettes</h2>
-    <button class="icon-btn" data-nav="edit-new" data-newrecipe="1">${ICONS.plus}</button>
+    ${canEdit()?`<button class="icon-btn" data-nav="edit-new" data-newrecipe="1">${ICONS.plus}</button>`:''}
   </div>
   <div class="search-bar">${ICONS.search}<input type="search" id="libSearch" placeholder="Rechercher une recette…" value="${escapeHtml(state.librarySearch)}"></div>
   <div class="filters-row">
     ${QUICK_FILTERS.map(f=>`<button class="chip ${state.libraryFilter===f?'active':''}" data-filter="${f}">${f}</button>`).join('')}
   </div>
   ${list.length ? `<div class="recipe-grid">${list.map(r=>recipeCardHTML(r)).join('')}</div>`
-    : emptyState('Aucune recette trouvée.', 'Essaie une autre recherche ou ajoute une recette.', 'edit', null)}
+    : emptyState('Aucune recette trouvée.', 'Essaie une autre recherche ou ajoute une recette.', canEdit()?'edit':null, null)}
   `;
 }
 
@@ -740,27 +816,27 @@ function renderDetail(id){
   const avg = avgRating(r);
   return `
   <div class="detail-hero">
-    <label class="detail-hero-photo-label" id="detailPhotoLabel">
+    ${canEdit() ? `<label class="detail-hero-photo-label" id="detailPhotoLabel">
       ${r.mainImage?`<img src="${r.mainImage}">`:`<div class="detail-hero-placeholder">${ICONS.photo}<div>Ajouter une photo</div></div>`}
       <input type="file" accept="image/*" id="detailPhotoInput" class="visually-hidden-file">
-    </label>
+    </label>` : (r.mainImage?`<img src="${r.mainImage}">`:'')}
     <div class="top-actions">
       <button class="icon-btn" data-back="1">${ICONS.back}</button>
       <div style="display:flex;gap:8px">
         <button class="icon-btn heart ${r.isFavorite?'active':''}" data-fav="${r.id}">${ICONS.heart}</button>
-        <button class="icon-btn" data-nav="edit" data-editid="${r.id}">${ICONS.edit}</button>
+        ${canEdit()?`<button class="icon-btn" data-nav="edit" data-editid="${r.id}">${ICONS.edit}</button>`:''}
       </div>
     </div>
   </div>
   <div class="detail-body">
     <h1 class="serif" style="font-size:1.6rem;margin:14px 0 6px">${escapeHtml(r.title)}</h1>
     <div class="detail-tags">
-      <span class="pill pill-terracotta">${r.category}</span>
+      <span class="pill pill-terracotta">${escapeHtml(r.category)}</span>
       ${(r.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join('')}
     </div>
 
     <div class="detail-stats">
-      <div class="stat" id="ratingStat" style="cursor:pointer" title="Cliquer pour noter"><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
+      <div class="stat" ${canEdit()?'id="ratingStat" style="cursor:pointer" title="Cliquer pour noter"':''}><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
       <div class="stat"><div class="val">${(r.realizations||[]).length}</div><div class="lbl">Réalisations</div></div>
       <div class="stat"><div class="val">${totalTime(r)}</div><div class="lbl">Min. total</div></div>
       <div class="stat"><div class="val">${r.nutrition && r.nutrition.finalWeight && r.nutrition.kcal100 ? Math.round((r.nutrition.kcal100*r.nutrition.finalWeight/100)/r.referenceServings) : '—'}</div><div class="lbl">kcal/portion</div></div>
@@ -1280,10 +1356,11 @@ function renderEdit(id){
   <div class="field"><label class="field-label">Commentaire général</label><textarea id="f-comment">${escapeHtml(d.personalComment)}</textarea></div>
   <div class="field"><label class="field-label">Notes privées</label><textarea id="f-privnotes">${escapeHtml(d.privateNotes)}</textarea></div>
 
-  <div style="display:flex;gap:10px;margin:26px 0 40px">
+  <div style="display:flex;gap:10px;margin:26px 0 10px">
     <button class="btn btn-outline btn-block" id="cancelEdit">Annuler</button>
     <button class="btn btn-primary btn-block" id="saveRecipe">${ICONS.save} Enregistrer</button>
   </div>
+  ${id && canEdit() ? `<button class="btn btn-outline btn-block" id="deleteRecipeBtn" style="color:#B23A2F;border-color:#B23A2F;margin-bottom:40px">Supprimer la recette</button>` : '<div style="margin-bottom:40px"></div>'}
   `;
 }
 function ingFormRow(ing, i){
@@ -1436,6 +1513,22 @@ function renderProfile(){
   const lastBackup = meta.lastBackup ? new Date(meta.lastBackup).toLocaleString('fr-FR') : 'jamais';
   return `
   <div class="top-header-bar"><h2>Mon espace</h2></div>
+
+  <div class="backup-box">
+    <h3 style="margin-top:0">Connexion</h3>
+    ${isAuthed ? `
+      <p style="margin:0 0 12px">Connecté${fbAuth.currentUser?' en tant que '+escapeHtml(fbAuth.currentUser.email):''}. Tu peux modifier tes recettes.</p>
+      <button class="btn btn-primary btn-block" id="fbPublishBtn">Publier mes recettes en ligne</button>
+      <button class="btn btn-outline btn-block" id="fbSignOutBtn" style="margin-top:10px">Se déconnecter</button>
+    ` : `
+      <p style="margin:0 0 12px;font-size:0.85rem;color:var(--brown-soft)">Connecte-toi pour pouvoir modifier tes recettes. Sans connexion, tu peux tout consulter mais pas modifier.</p>
+      <div class="field"><label class="field-label">E-mail</label><input type="email" id="fbEmailInput" placeholder="toi@exemple.fr"></div>
+      <div class="field" style="margin-bottom:0"><label class="field-label">Mot de passe</label><input type="password" id="fbPasswordInput"></div>
+      <button class="btn btn-primary btn-block" id="fbSignInBtn" style="margin-top:14px">Se connecter</button>
+      <div id="fbSignInError" style="color:#B23A2F;font-size:0.82rem;margin-top:8px"></div>
+    `}
+  </div>
+
   <ul class="menu-list">
     <li data-nav="library">${ICONS.book}<span class="t">Mes recettes</span><span class="n">${RECIPES.length}</span></li>
     <li data-nav="favorites">${ICONS.heart}<span class="t">Mes favoris</span><span class="n">${RECIPES.filter(r=>r.isFavorite).length}</span></li>
@@ -1759,6 +1852,7 @@ function showRatingModal(r){
     if(comment) r.personalComment = comment; // remonte dans "Mon commentaire"
     r.updatedAt = nowISO();
     persistRecipes();
+    fbSaveRecipe(r);
     root.innerHTML = '';
     go('detail', {id:r.id});
     toast('Réalisation enregistrée !');
@@ -1808,7 +1902,7 @@ function showMenuPickModal(key){
     document.getElementById('menuPickList').innerHTML = list.map(r=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:var(--beige);cursor:pointer" data-pick="${r.id}">
         <span style="flex:1;font-weight:700;font-size:0.9rem">${escapeHtml(r.title)}</span>
-        <span class="pill">${r.category}</span>
+        <span class="pill">${escapeHtml(r.category)}</span>
       </div>`).join('') || '<p style="color:var(--brown-soft)">Aucune recette.</p>';
     document.querySelectorAll('[data-pick]').forEach(el=>{
       el.onclick = ()=>{
@@ -2031,33 +2125,46 @@ function renderGuestPage(payload){
   document.getElementById('gSend').onclick = ()=>{
     const name = document.getElementById('gName').value.trim() || 'Un invité';
     const comment = document.getElementById('gComment').value.trim();
-    // Message standardisé — même format partout pour un copier-coller rapide
-    const text = `AVIS RECETTE — ${payload.title}\nInvité : ${name}\nNote : ${rating}/10\nCommentaire : ${comment || '(aucun)'}`;
-    const encoded = encodeURIComponent(text);
-    const phoneDigits = (payload.phone||'').replace(/[^\d+]/g,'').replace(/^\+/,'');
+    const btn = document.getElementById('gSend');
 
-    // WhatsApp — ouvre directement une discussion avec le numéro renseigné (sinon compose générique)
-    document.getElementById('gWhatsapp').href = phoneDigits
-      ? `https://wa.me/${phoneDigits}?text=${encoded}`
-      : `https://wa.me/?text=${encoded}`;
+    function showManualOptions(){
+      const text = `AVIS RECETTE — ${payload.title}\nInvité : ${name}\nNote : ${rating}/10\nCommentaire : ${comment || '(aucun)'}`;
+      const encoded = encodeURIComponent(text);
+      const phoneDigits = (payload.phone||'').replace(/[^\d+]/g,'').replace(/^\+/,'');
+      document.getElementById('gWhatsapp').href = phoneDigits
+        ? `https://wa.me/${phoneDigits}?text=${encoded}`
+        : `https://wa.me/?text=${encoded}`;
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const smsNumber = payload.phone || '';
+      document.getElementById('gSms').href = isIOS
+        ? `sms:${smsNumber}&body=${encoded}`
+        : `sms:${smsNumber}?body=${encoded}`;
+      const subject = encodeURIComponent('Avis recette — '+payload.title);
+      document.getElementById('gMailto').href = `mailto:${payload.email||''}?subject=${subject}&body=${encoded}`;
+      document.getElementById('gSendOptions').style.display = 'flex';
+      document.getElementById('gCopy').onclick = ()=>{
+        navigator.clipboard.writeText(text).then(()=>{
+          document.getElementById('gCopy').textContent = 'Copié !';
+        });
+      };
+    }
 
-    // SMS — le séparateur diffère entre iOS et Android
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const smsNumber = payload.phone || '';
-    document.getElementById('gSms').href = isIOS
-      ? `sms:${smsNumber}&body=${encoded}`
-      : `sms:${smsNumber}?body=${encoded}`;
-
-    // E-mail
-    const subject = encodeURIComponent('Avis recette — '+payload.title);
-    document.getElementById('gMailto').href = `mailto:${payload.email||''}?subject=${subject}&body=${encoded}`;
-
-    document.getElementById('gSendOptions').style.display = 'flex';
-    document.getElementById('gCopy').onclick = ()=>{
-      navigator.clipboard.writeText(text).then(()=>{
-        document.getElementById('gCopy').textContent = 'Copié !';
-      });
-    };
+    if(fbReady && payload.id){
+      btn.disabled = true;
+      btn.textContent = 'Envoi en cours…';
+      fbAddGuestReview(payload.id, {id:uid(), name, rating, comment, date:nowISO()})
+        .then(()=>{
+          btn.textContent = '✓ Avis envoyé, merci !';
+        })
+        .catch(()=>{
+          btn.disabled = false;
+          btn.textContent = 'Envoyer mon avis';
+          toast ? toast('Envoi direct impossible, utilise une autre méthode ci-dessous.') : null;
+          showManualOptions();
+        });
+    } else {
+      showManualOptions();
+    }
   };
 }
 
@@ -2281,10 +2388,24 @@ function bindEditEvents(app){
     const idx = RECIPES.findIndex(r=>r.id===editDraft.id);
     if(idx>=0) RECIPES[idx] = editDraft; else RECIPES.push(editDraft);
     persistRecipes();
+    fbSaveRecipe(editDraft);
     const savedId = editDraft.id;
     editDraft = null;
     toast('Recette enregistrée');
     go('detail', {id: savedId});
+  };
+  const deleteBtn = document.getElementById('deleteRecipeBtn');
+  if(deleteBtn) deleteBtn.onclick = ()=>{
+    if(!canEdit()){ toast('Connecte-toi pour supprimer une recette.'); return; }
+    const id = editDraft.id;
+    const title = editDraft.title;
+    if(!confirm(`Supprimer définitivement "${title}" ? Cette action est irréversible.`)) return;
+    RECIPES = RECIPES.filter(r=>r.id!==id);
+    persistRecipes();
+    fbDeleteRecipe(id);
+    editDraft = null;
+    toast('Recette supprimée');
+    go('library', {});
   };
 }
 function syncEditFields(){
@@ -2389,6 +2510,23 @@ function bindMenuEvents(app){
 
 /* ---------------- PROFILE bindings ---------------- */
 function bindProfileEvents(app){
+  const signInBtn = document.getElementById('fbSignInBtn');
+  if(signInBtn) signInBtn.onclick = ()=>{
+    const email = document.getElementById('fbEmailInput').value.trim();
+    const pass = document.getElementById('fbPasswordInput').value;
+    const errEl = document.getElementById('fbSignInError');
+    errEl.textContent = '';
+    fbSignIn(email, pass).catch(e=>{
+      errEl.textContent = 'Connexion impossible : e-mail ou mot de passe incorrect.';
+    });
+  };
+  const signOutBtn = document.getElementById('fbSignOutBtn');
+  if(signOutBtn) signOutBtn.onclick = ()=> fbSignOut();
+  const publishBtn = document.getElementById('fbPublishBtn');
+  if(publishBtn) publishBtn.onclick = ()=>{
+    if(!confirm('Publier toutes tes recettes locales en ligne ? Ça remplacera ce qui est déjà en ligne par la version de cet appareil.')) return;
+    fbPublishAllRecipes().then(()=> toast('Recettes publiées en ligne !')).catch(()=> toast('Échec de la publication, vérifie ta connexion.'));
+  };
   const exp = document.getElementById('exportBackup');
   if(exp) exp.onclick = ()=>{
     const data = {recipes:RECIPES, shopping:SHOPPING, menu:MENU, exportedAt:nowISO()};
