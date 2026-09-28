@@ -637,6 +637,23 @@ function smartUnit(qty, unit){
   if(unit === 'l' && qty < 1) return {qty: qty*100, unit:'cl'};
   return {qty, unit};
 }
+/* Recalcule les quantités écrites dans le texte d'une étape (ex. "160 g de riz") selon le nombre
+   de portions choisi. Seuls les nombres suivis d'une unité de quantité sont modifiés : les durées
+   ("12 minutes") et les autres nombres restent intacts. */
+function scaleStepQuantities(text, refServ, targetServ){
+  if(!text || !refServ || !targetServ || refServ === targetServ) return text;
+  const re = /(\d+(?:[.,]\d+)?)(\s*(?:à|-)\s*(\d+(?:[.,]\d+)?))?\s*(kg|g|ml|cl|l|c\. à soupe|c\. à café|cuillères? à soupe|cuillères? à café|pincées?|sachets?|tranches?)(?![A-Za-zÀ-ÿ])/g;
+  const num = s => parseFloat(String(s).replace(',', '.'));
+  const plural = (unit, q)=> unit.replace(/^(pincée|sachet|tranche|cuillère)s?/, (w, base)=> base + (q > 1 ? 's' : ''));
+  return text.replace(re, (m, n1, range, n2, unit)=>{
+    if(n2 !== undefined){
+      const q2 = scaleQty(num(n2), refServ, targetServ);
+      return fmtQty(scaleQty(num(n1), refServ, targetServ)) + ' à ' + fmtQty(q2) + ' ' + plural(unit, q2);
+    }
+    const r = smartUnit(scaleQty(num(n1), refServ, targetServ), unit);
+    return fmtQty(r.qty) + ' ' + plural(r.unit, r.qty);
+  });
+}
 function qtyUnitLabel(qty, unit){
   const r = smartUnit(qty, unit);
   return (fmtQty(r.qty) + ' ' + escapeHtml(r.unit||'')).trim();
@@ -902,7 +919,7 @@ function renderDetail(id){
     ${r.steps.map((s,i)=>`
       <div class="step-block">
         <div class="step-title"><span class="step-num">${i+1}.</span> ${escapeHtml(s.title)}</div>
-        <p>${renderStepText(s.content)}</p>
+        <p>${renderStepText(s.content, r.referenceServings, serv)}</p>
       </div>`).join('')}
 
     <div class="section-title">Valeurs nutritionnelles <span class="see-all" data-nav="history" data-histid="${r.id}">Historique →</span></div>
@@ -924,9 +941,9 @@ function renderDetail(id){
   `;
 }
 
-function renderStepText(text){
-  // détecte durées "X min", "X secondes", "X h", "X à Y minutes" sans casser le texte
-  return escapeHtml(text).replace(/(\d+)(\s*(?:à|-)\s*(\d+))?\s*(heures?|h\b|min(?:ute)?s?|sec(?:onde)?s?)\b/gi, (m, n1, mid, n2, unitRaw)=>{
+function renderStepText(text, refServ, targetServ){
+  // recalcule les quantités selon les portions, puis détecte les durées "X min", "X secondes", "X h", "X à Y minutes"
+  return escapeHtml(scaleStepQuantities(text, refServ, targetServ)).replace(/(\d+)(\s*(?:à|-)\s*(\d+))?\s*(heures?|h\b|min(?:ute)?s?|sec(?:onde)?s?)\b/gi, (m, n1, mid, n2, unitRaw)=>{
     const unit = unitRaw.toLowerCase();
     let suffix, toMinutes;
     if(unit.startsWith('h')){ suffix='H'; toMinutes = v=>v*60; }
@@ -1767,7 +1784,7 @@ function renderCookOverlay(){
     <div class="active-timers-bar" id="activeTimersBar"></div>
     <div class="cooking-content">
       <h2>${escapeHtml(step.title)}</h2>
-      <p>${escapeHtml(step.content)}</p>
+      <p>${escapeHtml(scaleStepQuantities(step.content, r.referenceServings, state.cooking.servings))}</p>
       ${durations.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
         ${durations.map(d=>`<button class="cooking-timer-suggest" data-launchtimer="${d.minutes}">${ICONS.clock} ${d.label}</button>`).join('')}
       </div>` : ''}
