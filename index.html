@@ -638,14 +638,35 @@ function smartUnit(qty, unit){
   return {qty, unit};
 }
 /* Recalcule les quantités écrites dans le texte d'une étape (ex. "160 g de riz") selon le nombre
-   de portions choisi. Seuls les nombres suivis d'une unité de quantité sont modifiés : les durées
-   ("12 minutes") et les autres nombres restent intacts. */
+   de portions choisi. Règles :
+   - un nombre suivi d'une unité de quantité (g, ml, cuillères...) est multiplié ;
+   - "N pâtons de X g" : N (le nombre de pièces) est multiplié, mais X (le poids de chaque pièce) reste fixe ;
+   - un poids suivi de "chacun" / "par pièce" ou précédé de "chaque ... de" reste fixe ;
+   - les durées ("12 minutes") et les autres nombres restent intacts. */
 function scaleStepQuantities(text, refServ, targetServ){
   if(!text || !refServ || !targetServ || refServ === targetServ) return text;
-  const re = /(\d+(?:[.,]\d+)?)(\s*(?:à|-)\s*(\d+(?:[.,]\d+)?))?\s*(kg|g|ml|cl|l|c\. à soupe|c\. à café|cuillères? à soupe|cuillères? à café|pincées?|sachets?|tranches?)(?![A-Za-zÀ-ÿ])/g;
-  const num = s => parseFloat(String(s).replace(',', '.'));
+  const factor = targetServ / refServ;
+  const num = v => parseFloat(String(v).replace(',', '.'));
+  const scaleCount = n => Math.max(1, Math.round(num(n) * factor));
   const plural = (unit, q)=> unit.replace(/^(pincée|sachet|tranche|cuillère)s?/, (w, base)=> base + (q > 1 ? 's' : ''));
-  return text.replace(re, (m, n1, range, n2, unit)=>{
+  const saved = [];
+  const keep = str => { saved.push(str); return '\uE000' + (saved.length - 1) + '\uE001'; };
+
+  // 1) "5 pâtons de 170 g" : le nombre de pièces suit les portions, le poids par pièce non
+  const reCountOf = /(\d+)\s+((?!kg\b|g\b|ml\b|cl\b|l\b|c\.|cuill)[A-Za-zÀ-ÿœŒ'’-]+)\s+de\s+(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l)(?![A-Za-zÀ-ÿ])/g;
+  text = text.replace(reCountOf, (m, n, noun, x, u)=> keep(scaleCount(n) + ' ' + noun + ' de ' + x + ' ' + u));
+
+  // 2) pièces comptées seules ("diviser en 5 pâtons")
+  const reCountNoun = /(\d+)\s+(pâtons?|boules?|boulettes?|galettes?|steaks?|buns?|burgers?)(?![A-Za-zÀ-ÿ])/gi;
+  text = text.replace(reCountNoun, (m, n, noun)=> keep(scaleCount(n) + ' ' + noun));
+
+  // 3) quantités avec unité
+  const re = /(\d+(?:[.,]\d+)?)(\s*(?:à|-)\s*(\d+(?:[.,]\d+)?))?\s*(kg|g|ml|cl|l|c\. à soupe|c\. à café|cuillères? à soupe|cuillères? à café|pincées?|sachets?|tranches?)(?![A-Za-zÀ-ÿ])/g;
+  text = text.replace(re, (m, n1, range, n2, unit, offset, str)=>{
+    const before = str.slice(Math.max(0, offset - 30), offset);
+    const after = str.slice(offset + m.length, offset + m.length + 25);
+    if(/(chaque\s+[A-Za-zÀ-ÿ'’]+\s+de|chacune?\s+de)\s*$/i.test(before)) return m;
+    if(/^\s*(chacun|chacune|par\s|pièce|l['’]unité|\/\s*(pièce|pers))/i.test(after)) return m;
     if(n2 !== undefined){
       const q2 = scaleQty(num(n2), refServ, targetServ);
       return fmtQty(scaleQty(num(n1), refServ, targetServ)) + ' à ' + fmtQty(q2) + ' ' + plural(unit, q2);
@@ -653,6 +674,8 @@ function scaleStepQuantities(text, refServ, targetServ){
     const r = smartUnit(scaleQty(num(n1), refServ, targetServ), unit);
     return fmtQty(r.qty) + ' ' + plural(r.unit, r.qty);
   });
+
+  return text.replace(/\uE000(\d+)\uE001/g, (m, i)=> saved[+i]);
 }
 function qtyUnitLabel(qty, unit){
   const r = smartUnit(qty, unit);
