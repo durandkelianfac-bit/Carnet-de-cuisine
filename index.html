@@ -609,7 +609,10 @@ function renderNav(){
 /* ---------------- Helpers ---------------- */
 function getRecipe(id){ return RECIPES.find(r=>r.id===id); }
 function fmtQty(q){
-  if(q === null || q === undefined || q === '') return '';
+  // Une quantité de 0 n'a aucun sens en cuisine (on ne liste jamais "0 g de sel") :
+  // on l'affiche comme "pas de quantité", exactement comme un champ vide, pour que
+  // toutes les recettes soient cohérentes entre elles.
+  if(q === null || q === undefined || q === '' || q === 0) return '';
   const r = Math.round(q*100)/100;
   return (r % 1 === 0) ? String(r) : String(Math.round(r*10)/10).replace('.', ',');
 }
@@ -677,7 +680,10 @@ function scaleStepQuantities(text, refServ, targetServ){
 }
 function qtyUnitLabel(qty, unit){
   const r = smartUnit(qty, unit);
-  return (fmtQty(r.qty) + ' ' + escapeHtml(r.unit||'')).trim();
+  const qtyStr = fmtQty(r.qty);
+  // Pas de quantité (vide ou 0) : on n'affiche jamais une unité isolée sans son nombre
+  if(!qtyStr) return '';
+  return (qtyStr + ' ' + escapeHtml(r.unit||'')).trim();
 }
 const SERVING_UNIT_LABELS = {
   personnes: {singular:'personne', plural:'personnes'},
@@ -1440,12 +1446,12 @@ function ingFormRow(ing, i){
     <input type="number" placeholder="Qté" value="${ing.quantity??''}" data-ing="qty" step="any">
     <select data-ing="unit">${UNITS.map(u=>`<option value="${u}" ${u===ing.unit?'selected':''}>${u||'(unité)'}</option>`).join('')}</select>
     <input type="text" placeholder="Ingrédient" value="${escapeHtml(ing.name)}" data-ing="name">
-    <button data-rmIng="${i}" style="color:var(--brown-soft);font-size:1.2rem">×</button>
+    <button data-rming="${i}" style="color:var(--brown-soft);font-size:1.2rem">×</button>
   </div>`;
 }
 function stepFormBlock(s, i){
   return `<div class="step-form-block" data-steprow="${i}">
-    <div class="head"><span>Étape ${i+1}</span><button data-rmStep="${i}" style="color:var(--brown-soft);font-size:1.1rem">×</button></div>
+    <div class="head"><span>Étape ${i+1}</span><button data-rmstep="${i}" style="color:var(--brown-soft);font-size:1.1rem">×</button></div>
     <div class="field" style="margin-bottom:8px"><input type="text" placeholder="Titre de l'étape" value="${escapeHtml(s.title)}" data-step="title"></div>
     <textarea placeholder="Description de l'étape (les durées comme '5 minutes' deviendront des minuteurs)" data-step="content">${escapeHtml(s.content)}</textarea>
   </div>`;
@@ -2386,13 +2392,13 @@ function bindEditEvents(app){
   }
   const addIng = document.getElementById('addIngRow');
   if(addIng) addIng.onclick = ()=>{ syncEditFields(); editDraft.ingredients.push({id:uid(),quantity:'',unit:'g',name:''}); render(); };
-  app.querySelectorAll('[data-rmIng]').forEach(b=>{
-    b.onclick = ()=>{ syncEditFields(); editDraft.ingredients.splice(parseInt(b.dataset.rmIng),1); render(); };
+  app.querySelectorAll('[data-rming]').forEach(b=>{
+    b.onclick = ()=>{ syncEditFields(); editDraft.ingredients.splice(parseInt(b.dataset.rming),1); render(); };
   });
   const addStep = document.getElementById('addStepRow');
   if(addStep) addStep.onclick = ()=>{ syncEditFields(); editDraft.steps.push({id:uid(),title:'',content:''}); render(); };
-  app.querySelectorAll('[data-rmStep]').forEach(b=>{
-    b.onclick = ()=>{ syncEditFields(); editDraft.steps.splice(parseInt(b.dataset.rmStep),1); render(); };
+  app.querySelectorAll('[data-rmstep]').forEach(b=>{
+    b.onclick = ()=>{ syncEditFields(); editDraft.steps.splice(parseInt(b.dataset.rmstep),1); render(); };
   });
   const cancelBtn = document.getElementById('cancelEdit');
   if(cancelBtn) cancelBtn.onclick = ()=>{ editDraft = null; history_back(); };
@@ -2443,7 +2449,7 @@ function syncEditFields(){
   document.querySelectorAll('[data-ingrow]').forEach(row=>{
     const i = parseInt(row.dataset.ingrow);
     if(!editDraft.ingredients[i]) return;
-    editDraft.ingredients[i].quantity = row.querySelector('[data-ing=qty]').value === '' ? '' : parseFloat(row.querySelector('[data-ing=qty]').value);
+    editDraft.ingredients[i].quantity = row.querySelector('[data-ing=qty]').value === '' ? null : parseFloat(row.querySelector('[data-ing=qty]').value);
     editDraft.ingredients[i].unit = row.querySelector('[data-ing=unit]').value;
     editDraft.ingredients[i].name = row.querySelector('[data-ing=name]').value;
   });
