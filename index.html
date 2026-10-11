@@ -526,7 +526,7 @@ function fbListenRecipes(){
     try{ render(); }catch(e){ console.error('Erreur au ré-affichage après synchro', e); }
   }, err=>console.error('Écoute Firebase interrompue', err));
 }
-const isGuestPage = location.hash.startsWith('#guest=');
+const isGuestPage = location.hash.startsWith('#guest=') || location.hash.startsWith('#g=');
 if(fbReady && !isGuestPage){
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
@@ -2002,13 +2002,21 @@ function b64decode(str){
 }
 function buildGuestLink(r){
   const meta = load(META_KEY, {});
+  const base = location.href.split('#')[0];
+  // Lien court : la recette est déjà (ou vient d'être) publiée sur Firebase, l'invité la récupérera
+  // directement en ligne — seul l'identifiant (et le contact, minuscule) voyage dans le lien.
+  if(fbReady && isAuthed){
+    fbSaveRecipe(r); // garantit que la version partagée est bien celle d'aujourd'hui
+    const contact = b64encode({email: meta.guestEmail||'', phone: meta.guestPhone||''});
+    return base + '#g=' + r.id + ':' + contact;
+  }
+  // Repli (pas connecté ou Firebase indisponible) : on encode toute la recette dans le lien, comme avant.
   const payload = {
     id:r.id, title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
     referenceServings:r.referenceServings, servingUnit:r.servingUnit,
     prepTime:r.prepTime, cookingTime:r.cookingTime, restingTime:r.restingTime,
     ingredients:r.ingredients, steps:r.steps, nutrition:r.nutrition,
   };
-  const base = location.href.split('#')[0];
   return base + '#guest=' + b64encode(payload);
 }
 /* Reconstruit un texte de recette au même format que celui attendu par
@@ -2597,8 +2605,31 @@ function bindProfileEvents(app){
 const logoHomeLink = document.getElementById('logoHomeLink');
 if(logoHomeLink) logoHomeLink.addEventListener('click', (e)=>{ e.preventDefault(); go('home'); });
 
+function showGuestLinkError(msg){
+  document.body.innerHTML = `
+  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:28px;text-align:center">
+    <h1 class="serif" style="font-size:1.3rem;margin:0 0 10px">Recette introuvable</h1>
+    <p style="color:var(--brown-soft);max-width:340px">${escapeHtml(msg || "Ce lien n'est plus valide, ou la connexion a échoué. Demande un nouveau lien.")}</p>
+  </div>`;
+}
 (function init(){
   try{
+    if(location.hash.startsWith('#g=')){
+      const rest = location.hash.slice(3);
+      const sep = rest.indexOf(':');
+      const recipeId = sep===-1 ? rest : rest.slice(0, sep);
+      const contact = sep===-1 ? {} : (b64decode(rest.slice(sep+1)) || {});
+      if(fbReady){
+        fbDb.ref('recipes/'+recipeId).once('value').then(snap=>{
+          const r = sanitizeRecipe(snap.val());
+          if(r){ renderGuestPage({...r, email: contact.email||'', phone: contact.phone||''}); }
+          else { showGuestLinkError(); }
+        }).catch(()=> showGuestLinkError('Impossible de contacter le serveur. Vérifie ta connexion.'));
+      } else {
+        showGuestLinkError('Impossible de contacter le serveur. Vérifie ta connexion.');
+      }
+      return;
+    }
     if(location.hash.startsWith('#guest=')){
       const payload = b64decode(location.hash.slice(7));
       if(payload && payload.id){ renderGuestPage(payload); return; }
