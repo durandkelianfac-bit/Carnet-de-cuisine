@@ -425,14 +425,6 @@ function save(key, val){
     }
   }catch(e){
     console.error('Écriture impossible dans le stockage local (quota dépassé ?)', e);
-    if(typeof toast === 'function'){
-      try{
-        const msg = (typeof isAuthed !== 'undefined' && isAuthed)
-          ? 'Stockage de l\'appareil plein, mais pas d\'inquiétude : tes recettes sont quand même sauvegardées en ligne tant que tu es connecté.'
-          : 'Stockage de l\'appareil plein — connecte-toi pour que tes recettes soient aussi sauvegardées en ligne, ou exporte une sauvegarde.';
-        toast(msg);
-      }catch(t){}
-    }
   }
 }
 
@@ -526,7 +518,8 @@ function fbListenRecipes(){
     try{ render(); }catch(e){ console.error('Erreur au ré-affichage après synchro', e); }
   }, err=>console.error('Écoute Firebase interrompue', err));
 }
-const isGuestPage = location.hash.startsWith('#guest=') || location.hash.startsWith('#g=');
+const isGuestPage = location.hash.startsWith('#guest=') || location.hash.startsWith('#g=')
+  || new URLSearchParams(location.search).has('g') || new URLSearchParams(location.search).has('guest');
 if(fbReady && !isGuestPage){
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
@@ -2008,7 +2001,7 @@ function buildGuestLink(r){
   if(fbReady && isAuthed){
     fbSaveRecipe(r); // garantit que la version partagée est bien celle d'aujourd'hui
     const contact = b64encode({email: meta.guestEmail||'', phone: meta.guestPhone||''});
-    return base + '#g=' + r.id + ':' + contact;
+    return base + '?g=' + r.id + '&c=' + encodeURIComponent(contact);
   }
   // Repli (pas connecté ou Firebase indisponible) : on encode toute la recette dans le lien, comme avant.
   const payload = {
@@ -2017,7 +2010,7 @@ function buildGuestLink(r){
     prepTime:r.prepTime, cookingTime:r.cookingTime, restingTime:r.restingTime,
     ingredients:r.ingredients, steps:r.steps, nutrition:r.nutrition,
   };
-  return base + '#guest=' + b64encode(payload);
+  return base + '?guest=' + encodeURIComponent(b64encode(payload));
 }
 /* Reconstruit un texte de recette au même format que celui attendu par
    "Coller une recette entière", pour que l'invité puisse copier-coller
@@ -2614,11 +2607,25 @@ function showGuestLinkError(msg){
 }
 (function init(){
   try{
-    if(location.hash.startsWith('#g=')){
-      const rest = location.hash.slice(3);
-      const sep = rest.indexOf(':');
-      const recipeId = sep===-1 ? rest : rest.slice(0, sep);
-      const contact = sep===-1 ? {} : (b64decode(rest.slice(sep+1)) || {});
+    const qs = new URLSearchParams(location.search);
+    // Format actuel (?g=...&c=...), robuste face à Snapchat et consorts qui ignorent
+    // souvent tout ce qui suit un "#" en générant leur aperçu de lien.
+    const gParam = qs.get('g');
+    const guestParam = qs.get('guest');
+    // Anciens liens déjà envoyés, encore compatibles (#g=... et #guest=...)
+    const hashG = location.hash.startsWith('#g=') ? location.hash.slice(3) : null;
+    const hashGuest = location.hash.startsWith('#guest=') ? location.hash.slice(7) : null;
+
+    if(gParam !== null || hashG !== null){
+      let recipeId, contact;
+      if(gParam !== null){
+        recipeId = gParam;
+        contact = b64decode(decodeURIComponent(qs.get('c') || '')) || {};
+      } else {
+        const sep = hashG.indexOf(':');
+        recipeId = sep===-1 ? hashG : hashG.slice(0, sep);
+        contact = sep===-1 ? {} : (b64decode(hashG.slice(sep+1)) || {});
+      }
       if(fbReady){
         fbDb.ref('recipes/'+recipeId).once('value').then(snap=>{
           const r = sanitizeRecipe(snap.val());
@@ -2630,8 +2637,8 @@ function showGuestLinkError(msg){
       }
       return;
     }
-    if(location.hash.startsWith('#guest=')){
-      const payload = b64decode(location.hash.slice(7));
+    if(guestParam !== null || hashGuest !== null){
+      const payload = b64decode(guestParam !== null ? decodeURIComponent(guestParam) : hashGuest);
       if(payload && payload.id){ renderGuestPage(payload); return; }
     }
   }catch(guestErr){
