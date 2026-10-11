@@ -2239,7 +2239,7 @@ function postRenderBind(){
       const f = e.target.files[0]; if(!f) return;
       compressImageFile(f).then(dataUrl=>{
         const r = getRecipe(state.params.id);
-        if(r){ r.mainImage = dataUrl; persistRecipes(); render(); }
+        if(r){ r.mainImage = dataUrl; persistRecipes(); fbSaveRecipe(r); render(); }
       }).catch(()=> toast('Impossible de lire cette photo'));
     };
   }
