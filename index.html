@@ -426,7 +426,12 @@ function save(key, val){
   }catch(e){
     console.error('Écriture impossible dans le stockage local (quota dépassé ?)', e);
     if(typeof toast === 'function'){
-      try{ toast('Stockage plein — pense à exporter une sauvegarde et à libérer de la place.'); }catch(t){}
+      try{
+        const msg = (typeof isAuthed !== 'undefined' && isAuthed)
+          ? 'Stockage de l\'appareil plein, mais pas d\'inquiétude : tes recettes sont quand même sauvegardées en ligne tant que tu es connecté.'
+          : 'Stockage de l\'appareil plein — connecte-toi pour que tes recettes soient aussi sauvegardées en ligne, ou exporte une sauvegarde.';
+        toast(msg);
+      }catch(t){}
     }
   }
 }
