@@ -489,17 +489,25 @@ function fbAddGuestReview(recipeId, review){
 /* Remet en forme une recette reçue de Firebase : restaure les tableaux/objets que Firebase
    supprime silencieusement quand ils sont vides, et écarte toute entrée trop abîmée pour être
    affichée (évite qu'une seule recette corrompue ne casse le reste de l'app). */
+/* Firebase range un sous-objet écrit avec des clés texte (comme un avis invité, identifié par
+   son id) en OBJET, pas en liste — même si côté app c'est bien une liste. On le reconvertit donc
+   toujours en tableau au lieu de se fier à Array.isArray, sans quoi ces entrées disparaîtraient. */
+function toArray(v){
+  if(Array.isArray(v)) return v;
+  if(v && typeof v === 'object') return Object.values(v);
+  return [];
+}
 function sanitizeRecipe(r){
   if(!r || typeof r !== 'object') return null;
   if(typeof r.id !== 'string' || !r.id) return null;
   if(typeof r.title !== 'string') r.title = r.title ? String(r.title) : '';
   if(!r.title.trim()) return null;
-  r.ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
-  r.steps = Array.isArray(r.steps) ? r.steps : [];
-  r.tags = Array.isArray(r.tags) ? r.tags : [];
-  r.guestReviews = Array.isArray(r.guestReviews) ? r.guestReviews : [];
-  r.realizations = Array.isArray(r.realizations) ? r.realizations : [];
-  r.versions = Array.isArray(r.versions) ? r.versions : [];
+  r.ingredients = toArray(r.ingredients);
+  r.steps = toArray(r.steps);
+  r.tags = toArray(r.tags);
+  r.guestReviews = toArray(r.guestReviews);
+  r.realizations = toArray(r.realizations);
+  r.versions = toArray(r.versions);
   r.nutrition = (r.nutrition && typeof r.nutrition === 'object') ? r.nutrition : {};
   r.category = r.category || 'Plat';
   r.referenceServings = r.referenceServings || 1;
@@ -1089,7 +1097,7 @@ function parseFrenchRecipeText(content){
   function normNum(s){
     if(s==null) return null;
     s = String(s).replace(/[\u202f\u00a0]/g,'');
-    const m = s.match(/\d[\d\s]*[.,]?\d*/);
+    const m = s.match(/\d[\d\s]*[.,]?\d*|[.,]\d+/);
     if(!m) return null;
     const numStr = m[0].replace(/\s/g,'').replace(',', '.');
     const v = parseFloat(numStr);
@@ -1266,8 +1274,16 @@ function parseFrenchRecipeText(content){
     const norm = stripAccents(trimmed.toLowerCase()).replace(/[:•]+$/,'').trim();
     if(!titleFound){
       if(trimmed){
-        if(matchHeader(norm, trimmed)){ /* la première ligne non vide est déjà un intitulé : pas de titre explicite */ }
-        else { title = trimmed; titleFound = true; continue; }
+        const firstHdr = matchHeader(norm, trimmed);
+        if(firstHdr){
+          // La toute première ligne non vide est déjà un intitulé de section : pas de titre
+          // explicite dans le texte collé. On bascule directement sur cette section au lieu
+          // de continuer à chercher un titre plus loin (ce qui perdrait les lignes suivantes).
+          titleFound = true;
+          current = firstHdr;
+          continue;
+        }
+        title = trimmed; titleFound = true; continue;
       }
       continue;
     }
