@@ -148,6 +148,24 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 .recipe-card .info .meta{font-size:0.74rem;color:var(--brown-soft);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .recipe-card .info .rating{color:var(--gold);font-weight:800;}
 
+.featured-shuffle{position:absolute;top:12px;right:12px;z-index:3;background:rgba(255,255,255,0.25);backdrop-filter:blur(3px);color:#fff;border-radius:999px;padding:6px 12px;font-size:0.75rem;font-weight:800;}
+.req-card{display:flex;align-items:center;gap:14px;background:var(--ivoire);border-radius:var(--radius-lg);padding:16px 18px;margin-top:18px;box-shadow:var(--shadow);border:1.5px solid var(--beige);cursor:pointer;}
+.req-card svg{width:28px;height:28px;stroke:var(--terracotta);fill:none;stroke-width:1.6;flex-shrink:0;}
+.req-card div{flex:1;}
+.req-card h3{margin:0 0 3px;font-size:1.02rem;}
+.req-card p{margin:0;font-size:0.8rem;color:var(--brown-soft);}
+.req-badge{background:var(--terracotta);color:#fff;border-radius:999px;font-size:0.75rem;font-weight:800;padding:3px 10px;}
+.req-item{background:var(--ivoire);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px 18px;margin-bottom:12px;}
+.req-item .req-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.req-item .req-title{font-family:var(--serif);font-size:1.1rem;font-weight:600;margin:0 0 4px;word-break:break-word;}
+.req-item .req-meta{font-size:0.78rem;color:var(--brown-soft);margin-bottom:8px;}
+.req-item .req-note{font-size:0.88rem;margin:0 0 10px;white-space:pre-wrap;word-break:break-word;}
+.req-item .req-actions{display:flex;flex-wrap:wrap;gap:8px;}
+.req-status{font-size:0.7rem;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--beige);color:var(--brown-soft);}
+.req-status.nouvelle{background:var(--terracotta);color:#fff;}
+.req-status.encours{background:var(--gold);color:var(--brown);}
+.req-status.faite{background:#DDE8D3;color:#4C6B3A;}
+.req-item.done{opacity:0.7;}
 .random-card{display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,var(--brown),#4a382a);border-radius:var(--radius-lg);padding:18px 20px;margin-top:18px;color:#fff;box-shadow:var(--shadow-lg);}
 .random-card svg{width:30px;height:30px;stroke:var(--gold);fill:none;stroke-width:1.6;flex-shrink:0;}
 .random-card div{flex:1;}
@@ -526,12 +544,62 @@ function fbListenRecipes(){
     try{ render(); }catch(e){ console.error('Erreur au ré-affichage après synchro', e); }
   }, err=>console.error('Écoute Firebase interrompue', err));
 }
+/* ---- Demandes de mes amis ----
+   Un ami (sans compte) remplit un petit formulaire via un lien (?demande=1) : la demande est écrite
+   dans le noeud "requests" de Firebase (création autorisée à tous par les règles, mais lecture,
+   modification et suppression réservées à Kélian une fois connecté). Un invité ne peut donc ni
+   lire les demandes des autres, ni toucher aux recettes. */
+let REQUESTS = [];
+let requestsListenerAttached = false;
+const REQ_STATUSES = ['nouvelle','en cours','faite'];
+function fbAddRequest(req){
+  if(!fbReady || !fbDb) return Promise.reject(new Error('Firebase indisponible'));
+  try{ return fbDb.ref('requests/'+req.id).set(req); }
+  catch(e){ return Promise.reject(e); }
+}
+function fbUpdateRequest(id, patch){
+  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
+  try{ return fbDb.ref('requests/'+id).update(patch); }
+  catch(e){ return Promise.reject(e); }
+}
+function fbDeleteRequest(id){
+  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
+  try{ return fbDb.ref('requests/'+id).remove(); }
+  catch(e){ return Promise.reject(e); }
+}
+function sanitizeRequests(val){
+  return toArray(val).filter(q => q && typeof q === 'object' && typeof q.id === 'string' && typeof q.text === 'string' && q.text.trim())
+    .map(q => ({
+      id:q.id, name:String(q.name||'Un ami'), text:q.text, note:String(q.note||''),
+      status: REQ_STATUSES.includes(q.status) ? q.status : 'nouvelle',
+      date: q.date || ''
+    }))
+    .sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+}
+function fbListenRequests(){
+  if(!fbReady || !isAuthed || requestsListenerAttached) return;
+  requestsListenerAttached = true;
+  fbDb.ref('requests').on('value', snap=>{
+    REQUESTS = sanitizeRequests(snap.val());
+    if(['home','requests','profile'].includes(state.view)){
+      try{ render(); }catch(e){ console.error('Ré-affichage demandes', e); }
+    }
+  }, err=>{ requestsListenerAttached = false; console.error('Écoute des demandes interrompue', err); });
+}
+function fbStopRequests(){
+  if(fbReady && requestsListenerAttached){ try{ fbDb.ref('requests').off(); }catch(e){} }
+  requestsListenerAttached = false;
+  REQUESTS = [];
+}
+function requestLink(){ return location.origin + location.pathname + '?demande=1'; }
 const isGuestPage = location.hash.startsWith('#guest=') || location.hash.startsWith('#g=')
-  || new URLSearchParams(location.search).has('g') || new URLSearchParams(location.search).has('guest');
+  || new URLSearchParams(location.search).has('g') || new URLSearchParams(location.search).has('guest')
+  || new URLSearchParams(location.search).has('demande');
 if(fbReady && !isGuestPage){
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
     fbListenRecipes(); // la lecture est publique, on écoute dans tous les cas
+    if(user) fbListenRequests(); else fbStopRequests(); // les demandes ne sont lisibles que connecté
     try{ render(); }catch(e){}
   });
 }
@@ -782,6 +850,7 @@ function render(){
       case 'profile': html = renderProfile(); break;
       case 'favorites': html = renderFavorites(); break;
       case 'history': html = renderHistory(state.params.id); break;
+      case 'requests': html = renderRequests(); break;
       default: html = renderHome();
     }
   }catch(e){
@@ -797,8 +866,30 @@ function render(){
 }
 
 /* ---------------- HOME ---------------- */
+/* "En ce moment" : une recette choisie au hasard à chaque nouvelle ouverture de l'app (jamais deux
+   fois de suite la même). Elle reste stable tant qu'on navigue ou qu'on actualise dans la même
+   session, et le bouton "Autre" en tire une nouvelle à la demande. Les recettes avec photo
+   sont privilégiées pour que la grande carte soit toujours belle. */
+const FEATURED_KEY = 'mcc_featured_v1';
+function pickFeatured(forceNew){
+  if(!RECIPES.length) return null;
+  if(!forceNew){
+    try{ const cur = getRecipe(sessionStorage.getItem(FEATURED_KEY)); if(cur) return cur; }catch(e){}
+  }
+  let previous = null;
+  try{ previous = localStorage.getItem(FEATURED_KEY); }catch(e){}
+  let current = null;
+  try{ current = sessionStorage.getItem(FEATURED_KEY); }catch(e){}
+  let pool = RECIPES.filter(r => r.id !== previous && r.id !== current);
+  const withPhoto = pool.filter(r => r.mainImage);
+  if(withPhoto.length) pool = withPhoto;
+  if(!pool.length) pool = RECIPES;
+  const pick = pool[Math.floor(Math.random()*pool.length)];
+  try{ sessionStorage.setItem(FEATURED_KEY, pick.id); localStorage.setItem(FEATURED_KEY, pick.id); }catch(e){}
+  return pick;
+}
 function renderHome(){
-  const featured = RECIPES[0];
+  const featured = pickFeatured(false);
   const recent = [...RECIPES].sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
   return `
   <div class="home-hero">
@@ -813,6 +904,7 @@ function renderHome(){
   ${featured ? `
   <div class="section-title">En ce moment</div>
   <div class="featured" data-open="${featured.id}">
+    ${RECIPES.length>1?`<button class="featured-shuffle" id="featuredShuffle" type="button">↻ Autre</button>`:''}
     ${featured.mainImage?`<img src="${featured.mainImage}">`:''}
     <div class="featured-content">
       <span class="pill">${escapeHtml(featured.category)} · ${featured.tags.slice(0,2).map(escapeHtml).join(' · ')}</span>
@@ -836,11 +928,169 @@ function renderHome(){
   ${recent.length ? `<div class="recipe-scroll">${recent.map(r=>recipeCardHTML(r)).join('')}</div>`
     : emptyState('Ton carnet est encore vide.', 'Ajoute ta première recette.', 'edit', null)}
 
+  ${requestsHomeCardHTML()}
+
   <div class="random-card" id="surpriseMe">
     ${ICONS.dice}
     <div><h3>Surprends-moi</h3><p>Découvre une recette au hasard dans ton carnet</p></div>
   </div>
   `;
+}
+
+/* ---------------- DEMANDES DE MES AMIS ---------------- */
+function requestsHomeCardHTML(){
+  const fresh = REQUESTS.filter(q=>q.status==='nouvelle').length;
+  if(canEdit() && isAuthed){
+    return `<div class="req-card" id="openRequests">
+      ${ICONS.heart}
+      <div><h3>Demandes de mes amis</h3><p>${REQUESTS.length ? (fresh ? fresh+' nouvelle'+(fresh>1?'s':'')+' demande'+(fresh>1?'s':'') : 'Aucune nouvelle demande') : 'Rien pour l\'instant'}</p></div>
+      ${fresh?`<span class="req-badge">${fresh}</span>`:''}
+    </div>`;
+  }
+  return `<div class="req-card" id="openRequestForm">
+    ${ICONS.heart}
+    <div><h3>Une recette en tête ?</h3><p>Demande-moi une recette, je m'y mets !</p></div>
+  </div>`;
+}
+function fmtReqDate(iso){
+  try{ return new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){ return ''; }
+}
+function renderRequests(){
+  const link = requestLink();
+  let body;
+  if(!fbReady){
+    body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Connexion en ligne indisponible</div><div>Les demandes de tes amis arrivent via Internet. Vérifie ta connexion et recharge la page.</div></div>`;
+  } else if(!isAuthed){
+    body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Connecte-toi pour voir les demandes</div><div>Va dans « Profil », puis « Connexion ». Seul toi peux lire ces demandes.</div></div>`;
+  } else if(!REQUESTS.length){
+    body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Aucune demande pour le moment</div><div>Partage le lien ci-dessus à tes amis : leurs demandes apparaîtront ici.</div></div>`;
+  } else {
+    const order = {'nouvelle':0,'en cours':1,'faite':2};
+    const list = [...REQUESTS].sort((a,b)=> (order[a.status]-order[b.status]) || String(b.date).localeCompare(String(a.date)));
+    body = list.map(q=>`
+      <div class="req-item ${q.status==='faite'?'done':''}">
+        <div class="req-head"><span class="req-status ${q.status.replace(' ','')}">${escapeHtml(q.status)}</span><span class="req-meta" style="margin:0">${escapeHtml(q.name)} · ${escapeHtml(fmtReqDate(q.date))}</span></div>
+        <div class="req-title">${escapeHtml(q.text)}</div>
+        ${q.note?`<p class="req-note">${escapeHtml(q.note)}</p>`:''}
+        <div class="req-actions">
+          ${q.status!=='en cours'?`<button class="btn btn-ghost btn-sm" data-reqstatus="en cours" data-reqid="${escapeHtml(q.id)}">En cours</button>`:''}
+          ${q.status!=='faite'?`<button class="btn btn-ghost btn-sm" data-reqstatus="faite" data-reqid="${escapeHtml(q.id)}">Faite ✓</button>`:`<button class="btn btn-ghost btn-sm" data-reqstatus="nouvelle" data-reqid="${escapeHtml(q.id)}">Rouvrir</button>`}
+          <button class="btn btn-primary btn-sm" data-reqcreate="${escapeHtml(q.id)}">Créer la recette</button>
+          <button class="btn btn-outline btn-sm" data-reqdel="${escapeHtml(q.id)}">Supprimer</button>
+        </div>
+      </div>`).join('');
+  }
+  return `
+  <div class="top-header-bar">
+    <button class="icon-btn" data-back>${ICONS.back||'←'}</button>
+    <h2>Demandes de mes amis</h2>
+  </div>
+  <div class="backup-box">
+    <h3 style="margin-top:0">Le lien à partager</h3>
+    <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Envoie ce lien à tes amis : ils peuvent te demander une recette sans compte ni code. Ils ne peuvent rien modifier d'autre.</p>
+    <input type="text" id="reqLinkField" value="${escapeHtml(link)}" readonly style="margin-bottom:10px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" id="reqCopyLink">Copier le lien</button>
+      <button class="btn btn-outline btn-sm" id="reqShareLink">Partager…</button>
+    </div>
+  </div>
+  <div style="margin-top:18px">${body}</div>`;
+}
+function bindRequestsEvents(app){
+  const open = document.getElementById('openRequests');
+  if(open) open.onclick = ()=> go('requests');
+  const form = document.getElementById('openRequestForm');
+  if(form) form.onclick = ()=>{ location.href = requestLink(); };
+  const copy = document.getElementById('reqCopyLink');
+  if(copy) copy.onclick = ()=>{
+    const link = requestLink();
+    (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(()=> toast('Lien copié !'))
+      .catch(()=>{ const f = document.getElementById('reqLinkField'); if(f){ f.select(); } toast('Copie le lien sélectionné'); });
+  };
+  const share = document.getElementById('reqShareLink');
+  if(share) share.onclick = ()=>{
+    const link = requestLink();
+    if(navigator.share){ navigator.share({title:'Carnet de Cuisine', text:'Demande-moi une recette !', url:link}).catch(()=>{}); }
+    else if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>toast('Lien copié !')).catch(()=>{}); }
+  };
+  app.querySelectorAll('[data-reqstatus]').forEach(b=>{
+    b.onclick = ()=>{
+      fbUpdateRequest(b.dataset.reqid, {status:b.dataset.reqstatus}).catch(()=> toast('Modification impossible, vérifie ta connexion.'));
+    };
+  });
+  app.querySelectorAll('[data-reqdel]').forEach(b=>{
+    b.onclick = ()=>{
+      if(!confirm('Supprimer cette demande ?')) return;
+      fbDeleteRequest(b.dataset.reqdel).catch(()=> toast('Suppression impossible, vérifie ta connexion.'));
+    };
+  });
+  app.querySelectorAll('[data-reqcreate]').forEach(b=>{
+    b.onclick = ()=>{
+      const q = REQUESTS.find(x=>x.id===b.dataset.reqcreate);
+      if(!q) return;
+      editDraft = newDraft(); editDraft._fresh = true;
+      editDraft.title = q.text;
+      go('edit', {});
+    };
+  });
+}
+
+/* Page publique du formulaire (lien ?demande=1) : aucune connexion requise, aucun accès aux recettes. */
+function renderRequestPage(){
+  document.body.innerHTML = `
+  <div style="min-height:100vh;padding:28px 20px 60px;max-width:480px;margin:0 auto">
+    <div style="text-align:center">
+      <svg viewBox="0 0 100 100" style="width:56px;height:56px;margin:0 auto 18px"><circle cx="50" cy="50" r="48" fill="#C1652F"/><path d="M50 20c-9 0-16 6-18 14-7 1-12 7-12 14 0 6 4 11 9 13v9h42v-9c5-2 9-7 9-13 0-7-5-13-12-14-2-8-9-14-18-14z" fill="#FBF3E6"/></svg>
+      <h1 class="serif" style="font-size:1.5rem;margin:0 0 6px">Demande une recette</h1>
+      <p style="color:var(--brown-soft);margin:0 0 20px">Dis-moi ce que tu aimerais voir dans le Carnet de Cuisine, je m'y mets !</p>
+    </div>
+    <div class="card" style="padding:22px;text-align:left" id="rqCard">
+      <label class="field-label">Ton prénom</label>
+      <input type="text" id="rqName" maxlength="60" placeholder="Ton prénom" style="margin-bottom:16px">
+      <label class="field-label">La recette que tu voudrais</label>
+      <input type="text" id="rqText" maxlength="120" placeholder="Ex. : lasagnes à la ricotta, tarte tatin…" style="margin-bottom:16px">
+      <label class="field-label">Un détail à me donner ? (facultatif)</label>
+      <textarea id="rqNote" maxlength="500" placeholder="Une envie, un lien, une photo décrite, un souvenir…"></textarea>
+      <button class="btn btn-primary btn-block" id="rqSend" style="margin-top:18px">Envoyer ma demande</button>
+      <div id="rqMsg" style="font-size:0.85rem;margin-top:12px;text-align:center"></div>
+      <button class="btn btn-ghost btn-block" id="rqCopy" style="display:none;margin-top:10px">Copier ma demande</button>
+    </div>
+  </div>`;
+  const msg = document.getElementById('rqMsg');
+  const sendBtn = document.getElementById('rqSend');
+  sendBtn.onclick = ()=>{
+    const name = document.getElementById('rqName').value.trim();
+    const text = document.getElementById('rqText').value.trim();
+    const note = document.getElementById('rqNote').value.trim();
+    msg.style.color = '#B23A2F';
+    if(!name){ msg.textContent = 'Indique ton prénom.'; return; }
+    if(!text){ msg.textContent = 'Indique la recette que tu voudrais.'; return; }
+    let last = 0; try{ last = parseInt(localStorage.getItem('mcc_last_request')||'0',10); }catch(e){}
+    if(Date.now() - last < 20000){ msg.textContent = 'Un instant avant d\'envoyer une autre demande.'; return; }
+    const req = {id:uid(), name:name.slice(0,60), text:text.slice(0,120), status:'nouvelle', date:nowISO()};
+    if(note) req.note = note.slice(0,500);
+    sendBtn.disabled = true; sendBtn.textContent = 'Envoi en cours…'; msg.textContent = '';
+    fbAddRequest(req).then(()=>{
+      try{ localStorage.setItem('mcc_last_request', String(Date.now())); }catch(e){}
+      document.getElementById('rqCard').innerHTML = `
+        <div style="text-align:center;padding:10px 0">
+          <div style="font-size:2rem;margin-bottom:6px">✓</div>
+          <h2 class="serif" style="margin:0 0 6px">Demande envoyée !</h2>
+          <p style="color:var(--brown-soft);margin:0 0 16px">Merci ${escapeHtml(name)}, je regarde ça très vite.</p>
+          <button class="btn btn-outline btn-block" id="rqAgain">Faire une autre demande</button>
+        </div>`;
+      document.getElementById('rqAgain').onclick = ()=> renderRequestPage();
+    }).catch(()=>{
+      sendBtn.disabled = false; sendBtn.textContent = 'Envoyer ma demande';
+      msg.textContent = 'Envoi impossible pour le moment. Tu peux copier ta demande et me l\'envoyer directement.';
+      const copyBtn = document.getElementById('rqCopy');
+      copyBtn.style.display = 'block';
+      copyBtn.onclick = ()=>{
+        const t = `DEMANDE DE RECETTE\nDe : ${name}\nRecette : ${text}\nDétails : ${note || '(aucun)'}`;
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>{ copyBtn.textContent = 'Copié !'; }).catch(()=>{});
+      };
+    });
+  };
 }
 
 /* ---------------- LIBRARY ---------------- */
@@ -1611,7 +1861,7 @@ function renderProfile(){
   <div class="backup-box">
     <h3 style="margin-top:0">Connexion</h3>
     ${isAuthed ? `
-      <p style="margin:0 0 12px">Connecté${fbAuth.currentUser?' en tant que '+escapeHtml(fbAuth.currentUser.email):''}. Tu peux modifier tes recettes.</p>
+      <p style="margin:0 0 12px">Connecté${(fbAuth&&fbAuth.currentUser)?' en tant que '+escapeHtml(fbAuth.currentUser.email):''}. Tu peux modifier tes recettes.</p>
       <button class="btn btn-primary btn-block" id="fbPublishBtn">Publier mes recettes en ligne</button>
       <button class="btn btn-outline btn-block" id="fbSignOutBtn" style="margin-top:10px">Se déconnecter</button>
     ` : `
@@ -1626,6 +1876,7 @@ function renderProfile(){
   <ul class="menu-list">
     <li data-nav="library">${ICONS.book}<span class="t">Mes recettes</span><span class="n">${RECIPES.length}</span></li>
     <li data-nav="favorites">${ICONS.heart}<span class="t">Mes favoris</span><span class="n">${RECIPES.filter(r=>r.isFavorite).length}</span></li>
+    ${isAuthed?`<li data-nav="requests">${ICONS.heart}<span class="t">Demandes de mes amis</span><span class="n">${REQUESTS.filter(q=>q.status==='nouvelle').length}</span></li>`:''}
   </ul>
 
   <div class="backup-box">
@@ -2237,6 +2488,9 @@ function postRenderBind(){
     homeSearch.oninput = (e)=>{ state.homeSearch = e.target.value; };
     homeSearch.onkeydown = (e)=>{ if(e.key==='Enter'){ state.librarySearch = state.homeSearch; go('library'); } };
   }
+  const shuffle = document.getElementById('featuredShuffle');
+  if(shuffle) shuffle.addEventListener('click', (e)=>{ e.stopPropagation(); pickFeatured(true); render(); });
+  bindRequestsEvents(app);
   const surprise = document.getElementById('surpriseMe');
   if(surprise) surprise.onclick = ()=>{
     if(RECIPES.length===0){ toast('Ajoute des recettes d\'abord !'); return; }
@@ -2638,6 +2892,10 @@ function showGuestLinkError(msg){
     const hashG = location.hash.startsWith('#g=') ? location.hash.slice(3) : null;
     const hashGuest = location.hash.startsWith('#guest=') ? location.hash.slice(7) : null;
 
+    if(qs.has('demande')){
+      renderRequestPage();
+      return;
+    }
     if(gParam !== null || hashG !== null){
       let recipeId, contact;
       if(gParam !== null){
