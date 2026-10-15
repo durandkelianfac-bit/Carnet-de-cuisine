@@ -1494,7 +1494,6 @@ function accountBoxHTML(){
       <div style="border-top:1px solid var(--beige);margin-top:16px;padding-top:14px">
         <div class="field-label">Administration</div>
         <button class="btn btn-ghost btn-block" data-nav="accounts">Demandes de compte et membres${ACCOUNT_REQUESTS.length?` (${ACCOUNT_REQUESTS.length})`:''}</button>
-        <button class="btn btn-ghost btn-block" id="fbMigrateBtn" style="margin-top:10px">Importer mes anciennes recettes dans mon carnet</button>
       </div>`;
   }
   return `<div class="backup-box">
@@ -1621,13 +1620,6 @@ function bindAccountEvents(app){
     const name = document.getElementById('fbNameInput').value.trim();
     if(!name){ toast('Le nom ne peut pas être vide.'); return; }
     fbRenameMe(name).then(()=> toast('Nom enregistré')).catch(()=> toast('Enregistrement impossible.'));
-  };
-  const mig = document.getElementById('fbMigrateBtn');
-  if(mig) mig.onclick = ()=>{
-    if(!confirm('Ajouter à ton carnet toutes les anciennes recettes (celles déjà en ligne et celles de cet appareil) ? Rien de ce qui est déjà dans ton carnet ne sera écrasé.')) return;
-    mig.disabled = true;
-    fbMigrateLegacy().then(n=>{ mig.disabled = false; toast(n ? n+' recette'+(n>1?'s':'')+' ajoutée'+(n>1?'s':'')+' à ton carnet' : 'Rien de nouveau à importer'); })
-      .catch(()=>{ mig.disabled = false; toast('Import impossible, vérifie ta connexion et les règles Firebase.'); });
   };
   app.querySelectorAll('[data-acctok]').forEach(b=>{
     b.onclick = ()=>{
