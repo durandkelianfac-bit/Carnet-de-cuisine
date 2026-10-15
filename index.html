@@ -518,8 +518,19 @@ let remoteFavs = load(REMOTE_FAVS_KEY, {}); // favoris posés sur les recettes d
 function myUid(){ return (fbReady && fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : null; }
 function isOwnCookbook(){ return !fbReady || (!!CB.uid && CB.uid === myUid()); }
 /* Modifier = être dans SON carnet avec un compte validé. (Sans Firebase : mode local d'avant, tout est permis.) */
-function canEdit(){ return !fbReady || (isOwnCookbook() && isAuthed && isApproved); }
+/* Administrateur permanent : ce compte (adresse e-mail) est admin partout, sans rien à réclamer. Les règles Firebase font la même vérification. */
+const ADMIN_EMAIL = 'durandkelianfac@gmail.com';
+function isSuperEmail(){
+  try{ const u = fbAuth && fbAuth.currentUser; return !!(u && u.email && String(u.email).toLowerCase() === ADMIN_EMAIL); }catch(e){ return false; }
+}
+/* Administrateur dans le carnet de quelqu'un d'autre : peut tout modifier (recettes, photos, suppression). */
+function adminOnOther(){ return !!(fbReady && fbDb && isAuthed && isAdmin && CB.uid && CB.uid !== myUid()); }
+/* Modifier MON carnet (compte validé) */
+function ownEdit(){ return !fbReady || (isOwnCookbook() && isAuthed && isApproved); }
+function canEdit(){ return ownEdit() || adminOnOther(); }
 function canSyncOwn(){ return !!(fbReady && fbDb && isAuthed && isApproved && isOwnCookbook()); }
+/* Écrire dans le carnet ouvert : le mien, ou n'importe lequel pour l'administrateur */
+function canWriteCB(){ return canSyncOwn() || adminOnOther(); }
 
 function fbSignIn(email, password){
   if(!fbReady) return Promise.reject(new Error('Firebase indisponible'));
@@ -542,14 +553,6 @@ function fbRequestAccess(name){
 }
 /* Première installation : le premier à le demander devient administrateur (les règles refusent ensuite
    toute nouvelle revendication). Deux écritures à la suite, car la 2e dépend de la 1re. */
-function fbClaimAdmin(name){
-  const u = myUid();
-  if(!u) return Promise.reject(new Error('Non connecté'));
-  return fbDb.ref('admins/'+u).set(true).then(()=> fbDb.ref().update({
-    ['approved/'+u]: true,
-    ['profiles/'+u]: {name:name.slice(0,40), createdAt:nowISO(), count:0}
-  }));
-}
 function fbRenameMe(name){
   const u = myUid();
   return fbDb.ref('profiles/'+u+'/name').set(name.slice(0,40));
@@ -585,11 +588,25 @@ function fbListenMe(uid){
     }, err=>console.error('Écoute '+path+' interrompue', err));
     meRefs.push(ref);
   };
-  add('approved/'+uid, v=>{ isApproved = (v === true); });
-  add('admins/'+uid, v=>{ isAdmin = (v === true); if(isAdmin) fbListenAccountRequests(); else fbStopAccountRequests(); });
+  add('approved/'+uid, v=>{ isApproved = (v === true); if(!isApproved && isSuperEmail()) fbBootstrapSuper(); });
+  add('admins/'+uid, v=>{ isAdmin = (v === true) || isSuperEmail(); if(isAdmin) fbListenAccountRequests(); else fbStopAccountRequests(); rerenderIfNeeded(); });
   add('profiles/'+uid, v=>{ myProfile = (v && typeof v === 'object') ? v : null; syncProfileCount(); });
   add('accountRequests/'+uid, v=>{ myAccountRequest = (v && typeof v === 'object') ? v : null; });
-  fbDb.ref('admins').once('value').then(snap=>{ adminsExist = !!snap.val(); rerenderIfNeeded(); }).catch(()=>{});
+}
+/* Première connexion de l'administrateur permanent : validation + carnet créés tout seuls (une fois). */
+let superBootstrapping = false;
+function fbBootstrapSuper(){
+  const u = myUid();
+  if(!u || superBootstrapping || !isSuperEmail()) return;
+  superBootstrapping = true;
+  fbDb.ref('profiles/'+u).once('value').then(snap=>{
+    const up = {['approved/'+u]: true, ['admins/'+u]: true};
+    if(!snap.exists()){
+      const nm = (myAccountRequest && myAccountRequest.name) || 'Kélian';
+      up['profiles/'+u] = {name:String(nm).slice(0,40), createdAt:nowISO(), count:0};
+    }
+    return fbDb.ref().update(up);
+  }).catch(e=>{ console.error('Amorçage administrateur échoué', e); superBootstrapping = false; });
 }
 function fbStopMe(){
   meRefs.forEach(r=>{ try{ r.off(); }catch(e){} });
@@ -649,7 +666,8 @@ function openCookbook(uid, name){
       const mine = (uid === myUid());
       if(!mine) list.forEach(r=>{ r.isFavorite = !!remoteFavs[uid+':'+r.id]; });
       RECIPES = list;
-      if(mine){ writeCbCache(uid, list); syncProfileCount(); }
+      if(mine) writeCbCache(uid, list);
+      syncProfileCount();
       if(first){ first = false; resolve(); }
       try{ render(); }catch(e){ console.error('Ré-affichage après synchro', e); }
     }, err=>{ console.error('Écoute du carnet interrompue', err); if(first){ first = false; resolve(); } });
@@ -662,9 +680,13 @@ function closeCookbook(){
   try{ sessionStorage.removeItem(CB_SESSION_KEY); }catch(e){}
 }
 function syncProfileCount(){
-  if(!fbReady || !isApproved || !myProfile || !isOwnCookbook() || !CB.uid) return;
-  if(Number(myProfile.count) !== RECIPES.length){
-    try{ fbDb.ref('profiles/'+myUid()+'/count').set(RECIPES.length).catch(()=>{}); }catch(e){}
+  if(!fbReady || !isAuthed || !CB.uid) return;
+  let prof = null;
+  if(isOwnCookbook()){ if(!isApproved || !myProfile) return; prof = myProfile; }
+  else if(adminOnOther()){ prof = (COOKBOOKS || []).find(c => c.uid === CB.uid); if(!prof) return; }
+  else return;
+  if(Number(prof.count) !== RECIPES.length){
+    try{ fbDb.ref('profiles/'+CB.uid+'/count').set(RECIPES.length).catch(()=>{}); }catch(e){}
   }
 }
 
@@ -676,9 +698,9 @@ function cleanForFirebase(r){
 }
 const ownersSeen = new Set();
 function fbSaveRecipe(r){
-  if(!canSyncOwn()) return;
+  if(!canWriteCB()) return;
   try{
-    const u = myUid();
+    const u = CB.uid || myUid();
     const data = cleanForFirebase(r);
     delete data.guestReviews; // jamais réécrit d'ici : les avis reçus ne peuvent pas être écrasés par une sauvegarde
     fbDb.ref('cookbooks/'+u+'/'+r.id).update(data).catch(e=>console.error('Sync recette échouée', e));
@@ -689,8 +711,8 @@ function fbSaveRecipe(r){
   }catch(e){ console.error('Sync recette échouée', e); }
 }
 function fbDeleteRecipe(id){
-  if(!canSyncOwn()) return;
-  try{ fbDb.ref('cookbooks/'+myUid()+'/'+id).remove().catch(e=>console.error('Suppression distante échouée', e)); }
+  if(!canWriteCB()) return;
+  try{ fbDb.ref('cookbooks/'+(CB.uid || myUid())+'/'+id).remove().catch(e=>console.error('Suppression distante échouée', e)); }
   catch(e){ console.error('Suppression distante échouée', e); }
 }
 /* Publie TOUTES les recettes affichées dans mon carnet (utile après un import de sauvegarde). */
@@ -849,11 +871,12 @@ if(fbReady && !isGuestPage){
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
     if(user){
+      isAdmin = isSuperEmail();
       fbListenMe(user.uid);
       fbListenCooking(user.uid);
     } else {
       fbStopMe(); fbStopRequests(); fbStopAccountRequests(); fbStopCooking();
-      isApproved = false; isAdmin = false; myProfile = null; myAccountRequest = null;
+      isApproved = false; isAdmin = false; myProfile = null; myAccountRequest = null; superBootstrapping = false;
     }
     try{ render(); }catch(e){}
   });
@@ -1171,7 +1194,7 @@ function renderHome(){
   <div class="home-hero">
     <h1>CARNET DE CUISINE</h1>
     <p>Sublimer le simple, surprendre le palais.</p>
-    ${fbReady && CB.uid ? `<div class="cb-line"><span>Carnet de <b>${escapeHtml(CB.name || 'ce cuisinier')}</b>${isOwnCookbook()?' (le tien)':''}</span><button class="cb-switch" data-nav="landing">Changer de carnet</button></div>` : ''}
+    ${fbReady && CB.uid ? `<div class="cb-line"><span>Carnet de <b>${escapeHtml(CB.name || 'ce cuisinier')}</b>${isOwnCookbook()?' (le tien)':(adminOnOther()?' <span class="status-pill admin" style="margin-left:6px">Mode administrateur</span>':'')}</span><button class="cb-switch" data-nav="landing">Changer de carnet</button></div>` : ''}
     <div class="search-bar">
       ${ICONS.search}
       <input type="search" id="homeSearch" placeholder="Rechercher une recette…" value="${escapeHtml(state.homeSearch)}">
@@ -1219,7 +1242,7 @@ function renderHome(){
 /* ---------------- DEMANDES DE MES AMIS ---------------- */
 function requestsHomeCardHTML(){
   if(!fbReady) return '';
-  if(canEdit()){
+  if(ownEdit()){
     const fresh = REQUESTS.filter(q=>q.status==='nouvelle').length;
     return `<div class="req-card" id="openRequests">
       ${ICONS.heart}
@@ -1393,7 +1416,7 @@ function renderLanding(){
   } else if(myAccountRequest){
     mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('…', true)}<div><h3>Mon carnet</h3><p>Ta demande de compte attend d'être validée</p></div><span class="cb-arrow">›</span></div>`;
   } else {
-    mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('+', true)}<div><h3>Mon carnet</h3><p>${adminsExist === false ? 'Première installation : deviens administrateur' : 'Demande l\'accès pour avoir ton carnet'}</p></div><span class="cb-arrow">›</span></div>`;
+    mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('+', true)}<div><h3>Mon carnet</h3><p>Demande l\'accès pour avoir ton carnet</p></div><span class="cb-arrow">›</span></div>`;
   }
   const others = (COOKBOOKS || []).filter(c => c.uid !== me);
   const list = COOKBOOKS === null
@@ -1450,11 +1473,7 @@ function accountBoxHTML(){
     : '<span class="status-pill">Compte non validé</span>';
   let body = '';
   if(!isApproved){
-    if(adminsExist === false){
-      body = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:12px 0">Première installation : personne n'est encore administrateur. À faire <b>une seule fois</b>, avec ton compte.</p>
-        <div class="field"><label class="field-label">Ton prénom (affiché sur ton carnet)</label><input type="text" id="fbClaimName" maxlength="40" placeholder="Prénom"></div>
-        <button class="btn btn-primary btn-block" id="fbClaimBtn">Devenir administrateur</button>`;
-    } else if(!myAccountRequest){
+    if(!myAccountRequest){
       body = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:12px 0">Ton compte n'est pas encore validé. Envoie une demande à l'administrateur.</p>
         <div class="field"><label class="field-label">Ton prénom (affiché sur ton carnet)</label><input type="text" id="fbReqName" maxlength="40" placeholder="Prénom"></div>
         <button class="btn btn-primary btn-block" id="fbReqAccessBtn">Demander l'accès</button>`;
@@ -1590,14 +1609,6 @@ function bindAccountEvents(app){
       err.textContent = signUpErrorText(e);
     });
   };
-  const claim = document.getElementById('fbClaimBtn');
-  if(claim) claim.onclick = ()=>{
-    const name = document.getElementById('fbClaimName').value.trim();
-    if(!name){ toast('Indique ton prénom.'); return; }
-    claim.disabled = true;
-    fbClaimAdmin(name).then(()=>{ adminsExist = true; toast('Tu es administrateur !'); })
-      .catch(()=>{ claim.disabled = false; toast('Impossible : un administrateur existe déjà, ou les règles ne sont pas à jour.'); });
-  };
   const reqAcc = document.getElementById('fbReqAccessBtn');
   if(reqAcc) reqAcc.onclick = ()=>{
     const name = document.getElementById('fbReqName').value.trim();
@@ -1729,7 +1740,7 @@ function renderDetail(id){
     </div>
 
     <div class="detail-stats">
-      <div class="stat" ${canEdit()?'id="ratingStat" style="cursor:pointer" title="Cliquer pour noter"':''}><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
+      <div class="stat" ${ownEdit()?'id="ratingStat" style="cursor:pointer" title="Cliquer pour noter"':''}><div class="val">${r.personalRating?r.personalRating.toFixed(1):'—'}</div><div class="lbl">Ma note</div></div>
       <div class="stat"><div class="val">${(r.realizations||[]).length}</div><div class="lbl">Réalisations</div></div>
       <div class="stat"><div class="val">${totalTime(r)}</div><div class="lbl">Min. total</div></div>
       <div class="stat"><div class="val">${r.nutrition && r.nutrition.finalWeight && r.nutrition.kcal100 ? Math.round((r.nutrition.kcal100*r.nutrition.finalWeight/100)/r.referenceServings) : '—'}</div><div class="lbl">kcal/portion</div></div>
@@ -1850,7 +1861,7 @@ function renderGuestReviewsBlock(r){
   const mineView = !fbReady || isOwnCookbook();
   let buttons = '';
   if(mineView){
-    if(canEdit()) buttons = `<button class="btn btn-outline btn-block" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>`;
+    if(ownEdit()) buttons = `<button class="btn btn-outline btn-block" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>`;
   } else {
     buttons = `<button class="btn btn-primary btn-block" id="giveReview" data-recipeid="${r.id}">Donner mon avis</button>
       <button class="btn btn-outline btn-block" id="copyToMine" data-recipeid="${r.id}" style="margin-top:10px">Copier dans mon carnet</button>`;
@@ -2431,7 +2442,7 @@ function renderProfile(){
     ${(!fbReady || CB.uid) ? `<li data-nav="library">${ICONS.book}<span class="t">${isOwnCookbook() ? 'Mes recettes' : 'Recettes de '+escapeHtml(CB.name||'ce carnet')}</span><span class="n">${RECIPES.length}</span></li>
     <li data-nav="favorites">${ICONS.heart}<span class="t">Mes favoris</span><span class="n">${RECIPES.filter(r=>r.isFavorite).length}</span></li>` : ''}
     ${fbReady && CB.uid ? `<li data-nav="landing">${ICONS.book}<span class="t">Changer de carnet</span><span class="n">${escapeHtml(CB.name||'')}</span></li>` : ''}
-    ${canEdit() && fbReady ? `<li data-nav="requests">${ICONS.heart}<span class="t">Demandes de mes amis</span><span class="n">${REQUESTS.filter(q=>q.status==='nouvelle').length}</span></li>` : ''}
+    ${ownEdit() && fbReady ? `<li data-nav="requests">${ICONS.heart}<span class="t">Demandes de mes amis</span><span class="n">${REQUESTS.filter(q=>q.status==='nouvelle').length}</span></li>` : ''}
   </ul>
 
   <div class="backup-box">
@@ -2454,7 +2465,7 @@ function renderProfile(){
     <div class="ts">Dernière sauvegarde : ${lastBackup}</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-primary" id="exportBackup">Exporter toutes mes recettes</button>
-      ${canEdit() ? `<label class="btn btn-outline" id="importBackupLabel" style="text-align:center">Importer une sauvegarde
+      ${ownEdit() ? `<label class="btn btn-outline" id="importBackupLabel" style="text-align:center">Importer une sauvegarde
         <input type="file" accept=".json" id="importBackup" class="visually-hidden-file">
       </label>` : ''}
     </div>
@@ -2853,7 +2864,7 @@ function finishCooking(){
   const r = getRecipe(state.cooking.recipeId);
   stopCookingMode();
   if(!r) return;
-  if(canEdit()) showRatingModal(r);
+  if(ownEdit()) showRatingModal(r);
   else if(fbReady && !isOwnCookbook()) showReviewModal(r); // recette d'un autre carnet : on laisse un avis
   else toast('Bon appétit !');
 }
@@ -3560,7 +3571,7 @@ function bindProfileEvents(app){
       try{
         const data = JSON.parse(reader.result);
         if(data.recipes){
-          if(!canEdit()){ toast('Ouvre ton carnet avec ton compte pour importer.'); return; }
+          if(!ownEdit()){ toast('Ouvre ton carnet avec ton compte pour importer.'); return; }
           RECIPES = data.recipes; persistRecipes();
           if(fbReady) fbPublishAllRecipes().catch(()=> toast('Import fait ici, mais la publication en ligne a échoué.'));
         }
