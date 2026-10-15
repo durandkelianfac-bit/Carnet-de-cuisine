@@ -83,6 +83,8 @@ nav.bottomnav button.active svg{stroke:var(--terracotta);}
 .btn-ghost{background:var(--beige);color:var(--brown);}
 .btn-sm{padding:8px 14px;font-size:0.82rem;}
 .btn-block{width:100%;}
+.btn svg{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;}
+#startCooking svg{fill:currentColor;stroke:none;}
 .pill{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--beige);color:var(--brown-soft);font-size:0.72rem;font-weight:700;}
 .pill-terracotta{background:var(--terracotta);color:#fff;}
 .card{background:var(--ivoire);border-radius:var(--radius-lg);box-shadow:var(--shadow);}
@@ -125,7 +127,7 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 
 .shortcuts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:22px;}
 .shortcut{background:var(--ivoire);border-radius:var(--radius-md);padding:14px 6px;text-align:center;box-shadow:var(--shadow);}
-.shortcut svg{width:22px;height:22px;stroke:var(--terracotta);fill:none;stroke-width:1.7;margin:0 auto 6px;}
+.shortcut svg{display:block;width:22px;height:22px;stroke:var(--terracotta);fill:none;stroke-width:1.7;margin:0 auto 6px;}
 .shortcut span{font-size:0.72rem;font-weight:800;}
 
 .recipe-scroll{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x proximity;}
@@ -148,6 +150,26 @@ label.field-label{font-size:0.78rem;font-weight:800;color:var(--brown-soft);text
 .recipe-card .info .meta{font-size:0.74rem;color:var(--brown-soft);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .recipe-card .info .rating{color:var(--gold);font-weight:800;}
 
+.cb-card{display:flex;align-items:center;gap:14px;background:var(--ivoire);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;border:1.5px solid transparent;}
+.cb-card:hover{border-color:var(--terracotta);}
+.cb-card.cb-mine{border-color:var(--terracotta);}
+.cb-avatar{width:44px;height:44px;border-radius:50%;background:var(--terracotta);color:#fff;font-family:var(--serif);font-weight:700;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cb-avatar.muted{background:var(--beige);color:var(--brown-soft);}
+.cb-card h3{margin:0 0 2px;font-size:1.05rem;}
+.cb-card p{margin:0;font-size:0.8rem;color:var(--brown-soft);}
+.cb-card .cb-arrow{margin-left:auto;color:var(--terracotta);font-weight:800;font-size:1.2rem;}
+.cb-line{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:-8px 0 16px;font-size:0.85rem;color:var(--brown-soft);}
+.cb-switch{color:var(--terracotta);font-weight:800;font-size:0.82rem;text-decoration:underline;}
+.auth-tabs{display:flex;gap:6px;margin-bottom:14px;}
+.auth-tabs button{flex:1;padding:9px;border-radius:999px;background:var(--beige);font-weight:800;font-size:0.85rem;color:var(--brown-soft);}
+.auth-tabs button.active{background:var(--terracotta);color:#fff;}
+.kind-badge{display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--beige);color:var(--brown-soft);margin-left:6px;vertical-align:middle;}
+.kind-badge.cuisinier{background:var(--terracotta);color:#fff;}
+.kind-ico{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.status-pill{display:inline-block;font-size:0.75rem;font-weight:800;padding:4px 12px;border-radius:999px;background:var(--beige);color:var(--brown-soft);}
+.status-pill.ok{background:#DDE8D3;color:#4C6B3A;}
+.status-pill.admin{background:var(--gold);color:var(--brown);}
+body.on-landing nav.bottomnav, body.on-landing .desktop-nav{display:none !important;}
 .resume-card{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,var(--terracotta),#a4521f);color:#fff;border-radius:var(--radius-lg);padding:16px 16px 16px 18px;margin-top:22px;box-shadow:var(--shadow-lg);position:relative;}
 .resume-card .rc-info{flex:1;min-width:0;}
 .resume-card h3{color:#fff;margin:0 0 3px;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -389,6 +411,8 @@ const ICONS = {
   history:'<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9"/><path d="M3 3v6h6M12 7v5l4 2"/></svg>',
   scale:'<svg viewBox="0 0 24 24"><path d="M12 3v18M4 7h16M6 7l-3 6a3 3 0 006 0zM18 7l-3 6a3 3 0 006 0z"/></svg>',
   play:'<svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>',
+  toque:'<svg class="kind-ico" viewBox="0 0 24 24"><path d="M7 15a4 4 0 01-1.2-7.8A4.5 4.5 0 0112 4.5a4.5 4.5 0 016.2 2.7A4 4 0 0117 15v4H7z"/><path d="M7 18h10"/></svg>',
+  guest:'<svg class="kind-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-3.7 3.8-5.6 7.5-5.6s6.9 1.9 7.5 5.6"/></svg>',
 };
 
 /* ---------------- Data / storage ---------------- */
@@ -468,7 +492,7 @@ const firebaseConfig = {
   appId: "1:1078852091191:web:f0012d41df62a2d8ab6eb2"
 };
 let fbAuth = null, fbDb = null, fbReady = false, isAuthed = false;
-let recipesListenerAttached = false;
+let isApproved = false, isAdmin = false, myProfile = null, myAccountRequest = null, adminsExist = null;
 try{
   firebase.initializeApp(firebaseConfig);
   fbAuth = firebase.auth();
@@ -476,43 +500,273 @@ try{
   fbReady = true;
 }catch(e){ console.error('Firebase indisponible, mode local seul.', e); }
 
+/* Avec Firebase, chaque cuisinier a SON carnet en ligne (cookbooks/<uid>). Les recettes qui étaient
+   enregistrées localement sur cet appareil (ancienne version) sont gardées de côté, intactes, pour
+   que l'administrateur puisse les rapatrier dans son carnet ; on ne les mélange jamais à celui d'un autre. */
+let LEGACY_LOCAL_RECIPES = [];
+if(fbReady){ LEGACY_LOCAL_RECIPES = RECIPES; RECIPES = []; }
+
+/* Carnet actuellement ouvert : {uid, name}. uid null = aucun (on est sur la page d'accueil des carnets). */
+let CB = {uid:null, name:''};
+let COOKBOOKS = null;        // liste publique des carnets (profiles), null = pas encore chargée
+let ACCOUNT_REQUESTS = [];   // demandes de compte (visibles par l'administrateur seulement)
+const CB_SESSION_KEY = 'mcc_cb_session_v1';
+const CB_CACHE_PREFIX = 'mcc_cbcache_';
+const REMOTE_FAVS_KEY = 'mcc_remote_favs_v1';
+let remoteFavs = load(REMOTE_FAVS_KEY, {}); // favoris posés sur les recettes des AUTRES carnets (propres à cet appareil)
+
+function myUid(){ return (fbReady && fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : null; }
+function isOwnCookbook(){ return !fbReady || (!!CB.uid && CB.uid === myUid()); }
+/* Modifier = être dans SON carnet avec un compte validé. (Sans Firebase : mode local d'avant, tout est permis.) */
+function canEdit(){ return !fbReady || (isOwnCookbook() && isAuthed && isApproved); }
+function canSyncOwn(){ return !!(fbReady && fbDb && isAuthed && isApproved && isOwnCookbook()); }
+
 function fbSignIn(email, password){
   if(!fbReady) return Promise.reject(new Error('Firebase indisponible'));
   return fbAuth.signInWithEmailAndPassword(email, password);
 }
 function fbSignOut(){ if(fbReady) fbAuth.signOut(); }
-function canEdit(){ return !fbReady || isAuthed; }
+/* Création d'un compte : le compte existe tout de suite mais ne peut RIEN écrire tant que
+   l'administrateur n'a pas accepté la demande (règles Firebase). */
+function fbSignUp(name, email, password){
+  if(!fbReady) return Promise.reject(new Error('Firebase indisponible'));
+  return fbAuth.createUserWithEmailAndPassword(email, password).then(cred=>{
+    const u = cred.user;
+    return fbDb.ref('accountRequests/'+u.uid).set({uid:u.uid, name:name.slice(0,40), email:email.slice(0,120), date:nowISO()});
+  });
+}
+function fbRequestAccess(name){
+  const u = myUid();
+  if(!u) return Promise.reject(new Error('Non connecté'));
+  return fbDb.ref('accountRequests/'+u).set({uid:u, name:name.slice(0,40), email:(fbAuth.currentUser.email||'').slice(0,120), date:nowISO()});
+}
+/* Première installation : le premier à le demander devient administrateur (les règles refusent ensuite
+   toute nouvelle revendication). Deux écritures à la suite, car la 2e dépend de la 1re. */
+function fbClaimAdmin(name){
+  const u = myUid();
+  if(!u) return Promise.reject(new Error('Non connecté'));
+  return fbDb.ref('admins/'+u).set(true).then(()=> fbDb.ref().update({
+    ['approved/'+u]: true,
+    ['profiles/'+u]: {name:name.slice(0,40), createdAt:nowISO(), count:0}
+  }));
+}
+function fbRenameMe(name){
+  const u = myUid();
+  return fbDb.ref('profiles/'+u+'/name').set(name.slice(0,40));
+}
+function fbApproveAccount(q){
+  return fbDb.ref().update({
+    ['approved/'+q.uid]: true,
+    ['profiles/'+q.uid]: {name:q.name, createdAt:nowISO(), count:0},
+    ['accountRequests/'+q.uid]: null
+  });
+}
+function fbRefuseAccount(uid){ return fbDb.ref('accountRequests/'+uid).remove(); }
+function fbRemoveMember(uid){ return fbDb.ref().update({['approved/'+uid]: null, ['profiles/'+uid]: null}); }
 
-/* Pousse une recette vers Firebase (nécessite d'être connecté — sinon la règle refuse). */
+/* Écoute de mon statut (validé ? administrateur ? ma demande en cours ?) */
+let meRefs = [];
+function rerenderIfNeeded(){
+  if(['landing','home','profile','accounts','requests'].includes(state.view)){
+    try{ render(); }catch(e){ console.error('Ré-affichage', e); }
+  }
+}
+function syncApprovedListeners(){
+  if(isAuthed && isApproved) fbListenRequests(); else fbStopRequests();
+}
+function fbListenMe(uid){
+  fbStopMe();
+  const add = (path, fn)=>{
+    const ref = fbDb.ref(path);
+    ref.on('value', snap=>{
+      try{ fn(snap.val()); }catch(e){ console.error('Statut '+path, e); }
+      syncApprovedListeners();
+      rerenderIfNeeded();
+    }, err=>console.error('Écoute '+path+' interrompue', err));
+    meRefs.push(ref);
+  };
+  add('approved/'+uid, v=>{ isApproved = (v === true); });
+  add('admins/'+uid, v=>{ isAdmin = (v === true); if(isAdmin) fbListenAccountRequests(); else fbStopAccountRequests(); });
+  add('profiles/'+uid, v=>{ myProfile = (v && typeof v === 'object') ? v : null; syncProfileCount(); });
+  add('accountRequests/'+uid, v=>{ myAccountRequest = (v && typeof v === 'object') ? v : null; });
+  fbDb.ref('admins').once('value').then(snap=>{ adminsExist = !!snap.val(); rerenderIfNeeded(); }).catch(()=>{});
+}
+function fbStopMe(){
+  meRefs.forEach(r=>{ try{ r.off(); }catch(e){} });
+  meRefs = [];
+}
+let acctRef = null;
+function fbListenAccountRequests(){
+  if(acctRef || !fbReady) return;
+  acctRef = fbDb.ref('accountRequests');
+  acctRef.on('value', snap=>{
+    ACCOUNT_REQUESTS = Object.values(snap.val() || {})
+      .filter(q => q && typeof q.uid === 'string' && typeof q.name === 'string')
+      .sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')));
+    rerenderIfNeeded();
+  }, err=>{ acctRef = null; console.error('Écoute des demandes de compte interrompue', err); });
+}
+function fbStopAccountRequests(){
+  if(acctRef){ try{ acctRef.off(); }catch(e){} acctRef = null; }
+  ACCOUNT_REQUESTS = [];
+}
+/* Liste publique des carnets (prénom + nombre de recettes) */
+function fbListenProfiles(){
+  fbDb.ref('profiles').on('value', snap=>{
+    const v = snap.val() || {};
+    COOKBOOKS = Object.keys(v).filter(k => v[k] && typeof v[k] === 'object').map(k => ({
+      uid:k, name:String(v[k].name || 'Cuisinier'), count:Number(v[k].count) || 0, createdAt:v[k].createdAt || ''
+    })).sort((a,b)=> a.name.localeCompare(b.name,'fr'));
+    if(CB.uid){ const c = COOKBOOKS.find(x=>x.uid === CB.uid); if(c) CB.name = c.name; }
+    rerenderIfNeeded();
+  }, err=>{ if(COOKBOOKS === null) COOKBOOKS = []; console.error('Écoute des carnets interrompue', err); rerenderIfNeeded(); });
+}
+
+/* ---- Ouverture d'un carnet ---- */
+let cbRef = null;
+function readCbCache(uid){
+  try{ const a = JSON.parse(localStorage.getItem(CB_CACHE_PREFIX+uid) || '[]'); return Array.isArray(a) ? a.map(sanitizeRecipe).filter(Boolean) : []; }catch(e){ return []; }
+}
+function writeCbCache(uid, list){ try{ localStorage.setItem(CB_CACHE_PREFIX+uid, JSON.stringify(list)); }catch(e){} }
+function stopCookbookListener(){
+  if(cbRef){ try{ cbRef.off(); }catch(e){} cbRef = null; }
+}
+function openCookbook(uid, name){
+  return new Promise(resolve=>{
+    if(!fbReady){ resolve(); return; }
+    stopCookbookListener();
+    const prof = (COOKBOOKS || []).find(c => c.uid === uid);
+    CB = {uid, name: name || (prof && prof.name) || ''};
+    try{ sessionStorage.setItem(CB_SESSION_KEY, JSON.stringify(CB)); }catch(e){}
+    RECIPES = (uid === myUid()) ? readCbCache(uid) : [];
+    state.libraryFilter = 'Tout'; state.librarySearch = ''; state.homeSearch = '';
+    let first = true;
+    const ref = fbDb.ref('cookbooks/'+uid);
+    cbRef = ref;
+    ref.on('value', snap=>{
+      if(cbRef !== ref) return; // carnet refermé ou remplacé entre-temps
+      const list = Object.values(snap.val() || {}).map(sanitizeRecipe).filter(Boolean);
+      const mine = (uid === myUid());
+      if(!mine) list.forEach(r=>{ r.isFavorite = !!remoteFavs[uid+':'+r.id]; });
+      RECIPES = list;
+      if(mine){ writeCbCache(uid, list); syncProfileCount(); }
+      if(first){ first = false; resolve(); }
+      try{ render(); }catch(e){ console.error('Ré-affichage après synchro', e); }
+    }, err=>{ console.error('Écoute du carnet interrompue', err); if(first){ first = false; resolve(); } });
+  });
+}
+function closeCookbook(){
+  stopCookbookListener();
+  CB = {uid:null, name:''};
+  RECIPES = [];
+  try{ sessionStorage.removeItem(CB_SESSION_KEY); }catch(e){}
+}
+function syncProfileCount(){
+  if(!fbReady || !isApproved || !myProfile || !isOwnCookbook() || !CB.uid) return;
+  if(Number(myProfile.count) !== RECIPES.length){
+    try{ fbDb.ref('profiles/'+myUid()+'/count').set(RECIPES.length).catch(()=>{}); }catch(e){}
+  }
+}
+
+/* ---- Recettes : écriture dans MON carnet uniquement ---- */
+function cleanForFirebase(r){
+  const copy = JSON.parse(JSON.stringify(r)); // retire les undefined que Firebase refuse
+  delete copy._fresh;
+  return copy;
+}
+const ownersSeen = new Set();
 function fbSaveRecipe(r){
-  if(!fbReady || !isAuthed || !fbDb) return;
-  try{ fbDb.ref('recipes/'+r.id).set(r).catch(e=>console.error('Sync recette échouée', e)); }
-  catch(e){ console.error('Sync recette échouée', e); }
+  if(!canSyncOwn()) return;
+  try{
+    const u = myUid();
+    const data = cleanForFirebase(r);
+    delete data.guestReviews; // jamais réécrit d'ici : les avis reçus ne peuvent pas être écrasés par une sauvegarde
+    fbDb.ref('cookbooks/'+u+'/'+r.id).update(data).catch(e=>console.error('Sync recette échouée', e));
+    if(!ownersSeen.has(r.id)){
+      ownersSeen.add(r.id);
+      fbDb.ref('recipeOwners/'+r.id).set(u).catch(()=>{}); // permet aux liens courts ?g=<id> de retrouver le bon carnet
+    }
+  }catch(e){ console.error('Sync recette échouée', e); }
 }
 function fbDeleteRecipe(id){
-  if(!fbReady || !isAuthed || !fbDb) return;
-  try{ fbDb.ref('recipes/'+id).remove().catch(e=>console.error('Suppression distante échouée', e)); }
+  if(!canSyncOwn()) return;
+  try{ fbDb.ref('cookbooks/'+myUid()+'/'+id).remove().catch(e=>console.error('Suppression distante échouée', e)); }
   catch(e){ console.error('Suppression distante échouée', e); }
 }
-/* Publie TOUTES les recettes locales sur Firebase (à faire une fois après connexion sur l'appareil "maître"). */
+/* Publie TOUTES les recettes affichées dans mon carnet (utile après un import de sauvegarde). */
 function fbPublishAllRecipes(){
-  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
+  if(!canSyncOwn()) return Promise.reject(new Error('Non autorisé'));
+  const u = myUid();
   const updates = {};
-  RECIPES.forEach(r=>{ updates[r.id] = r; });
-  try{ return fbDb.ref('recipes').set(updates); }
+  RECIPES.forEach(r=>{ updates['cookbooks/'+u+'/'+r.id] = cleanForFirebase(r); updates['recipeOwners/'+r.id] = u; });
+  try{ return fbDb.ref().update(updates); }
   catch(e){ return Promise.reject(e); }
 }
-/* Un invité peut ajouter un avis même sans être connecté (autorisé par les règles). */
-function fbAddGuestReview(recipeId, review){
+/* Copie une recette d'un autre carnet dans le mien (sans avis, réalisations ni historique). */
+function fbCopyRecipeToMine(r){
+  if(!fbReady || !isAuthed || !isApproved) return Promise.reject(new Error('Compte non validé'));
+  const u = myUid();
+  const c = cleanForFirebase(r);
+  c.id = uid();
+  delete c.guestReviews; delete c.realizations; delete c.versions;
+  c.isFavorite = false; c.personalRating = null; c.personalComment = '';
+  c.copiedFrom = {uid: CB.uid, name: CB.name, recipeId: r.id};
+  c.createdAt = nowISO(); c.updatedAt = nowISO();
+  return fbDb.ref().update({['cookbooks/'+u+'/'+c.id]: c, ['recipeOwners/'+c.id]: u}).then(()=> c);
+}
+/* Rapatrie l'ancienne collection (noeud "recipes" + recettes locales de cet appareil) dans le carnet de
+   l'administrateur, sans jamais écraser une recette déjà présente. */
+function fbMigrateLegacy(){
+  if(!fbReady || !isAdmin || !isAuthed) return Promise.reject(new Error('Réservé à l\'administrateur'));
+  const u = myUid();
+  return fbDb.ref('recipes').once('value').then(snap=>{
+    const remote = Object.values(snap.val() || {}).map(sanitizeRecipe).filter(Boolean);
+    const byId = new Map(remote.map(r=>[r.id, r]));
+    const titles = new Set(remote.map(r=>r.title.toLowerCase()));
+    (LEGACY_LOCAL_RECIPES || []).map(sanitizeRecipe).filter(Boolean).forEach(r=>{
+      if(!byId.has(r.id) && !titles.has(r.title.toLowerCase())){ byId.set(r.id, r); titles.add(r.title.toLowerCase()); }
+    });
+    return fbDb.ref('cookbooks/'+u).once('value').then(s2=>{
+      const existing = s2.val() || {};
+      const updates = {}; let n = 0;
+      byId.forEach(r=>{
+        if(existing[r.id]) return;
+        updates['cookbooks/'+u+'/'+r.id] = cleanForFirebase(r);
+        updates['recipeOwners/'+r.id] = u;
+        n++;
+      });
+      if(!n) return 0;
+      return fbDb.ref().update(updates).then(()=> n);
+    });
+  });
+}
+
+/* ---- Avis ---- */
+function fbAddReview(ownerUid, recipeId, review){
   if(!fbReady || !fbDb) return Promise.reject(new Error('Firebase indisponible'));
-  try{ return fbDb.ref('recipes/'+recipeId+'/guestReviews/'+review.id).set(review); }
+  const base = ownerUid ? ('cookbooks/'+ownerUid+'/'+recipeId) : ('recipes/'+recipeId); // 2e cas : ancienne collection
+  try{ return fbDb.ref(base+'/guestReviews/'+review.id).set(review); }
   catch(e){ return Promise.reject(e); }
 }
-/* Écoute les recettes en direct : toute modif (la tienne depuis un autre appareil, ou un avis
-   invité) met à jour RECIPES et rafraîchit l'écran automatiquement. */
-/* Remet en forme une recette reçue de Firebase : restaure les tableaux/objets que Firebase
-   supprime silencieusement quand ils sont vides, et écarte toute entrée trop abîmée pour être
-   affichée (évite qu'une seule recette corrompue ne casse le reste de l'app). */
+function fbResolveOwner(recipeId){
+  if(!fbReady || !fbDb) return Promise.resolve('');
+  return fbDb.ref('recipeOwners/'+recipeId).once('value').then(s=>{ const v = s.val(); return (typeof v === 'string') ? v : ''; }).catch(()=> '');
+}
+/* Un invité (sans compte) peut déposer un avis : on retrouve d'abord le carnet qui contient la recette. */
+function fbAddGuestReview(recipeId, review, ownerUid){
+  if(ownerUid) return fbAddReview(ownerUid, recipeId, review);
+  return fbResolveOwner(recipeId).then(o => fbAddReview(o, recipeId, review));
+}
+/* Retrouve une recette partagée par lien court, où qu'elle soit */
+function fbFindSharedRecipe(recipeId){
+  return fbResolveOwner(recipeId).then(owner=>{
+    if(owner){
+      return fbDb.ref('cookbooks/'+owner+'/'+recipeId).once('value').then(s=>({ownerUid:owner, recipe:sanitizeRecipe(s.val())}));
+    }
+    return fbDb.ref('recipes/'+recipeId).once('value').then(s=>({ownerUid:'', recipe:sanitizeRecipe(s.val())}));
+  });
+}
+
 /* Firebase range un sous-objet écrit avec des clés texte (comme un avis invité, identifié par
    son id) en OBJET, pas en liste — même si côté app c'est bien une liste. On le reconvertit donc
    toujours en tableau au lieu de se fier à Array.isArray, sans quoi ces entrées disparaîtraient. */
@@ -521,6 +775,9 @@ function toArray(v){
   if(v && typeof v === 'object') return Object.values(v);
   return [];
 }
+/* Remet en forme une recette reçue de Firebase : restaure les tableaux/objets que Firebase
+   supprime silencieusement quand ils sont vides, et écarte toute entrée trop abîmée pour être
+   affichée (évite qu'une seule recette corrompue ne casse le reste de l'app). */
 function sanitizeRecipe(r){
   if(!r || typeof r !== 'object') return null;
   if(typeof r.id !== 'string' || !r.id) return null;
@@ -537,40 +794,27 @@ function sanitizeRecipe(r){
   r.referenceServings = r.referenceServings || 1;
   return r;
 }
-function fbListenRecipes(){
-  if(!fbReady || recipesListenerAttached) return;
-  recipesListenerAttached = true;
-  fbDb.ref('recipes').on('value', snap=>{
-    const val = snap.val();
-    if(!val) return; // rien en ligne pour l'instant (première utilisation) : on garde le local
-    const cleaned = Object.values(val).map(sanitizeRecipe).filter(Boolean);
-    if(cleaned.length === 0) return; // ne remplace jamais le local par une liste vide/illisible
-    RECIPES = cleaned;
-    save(DB_KEY, RECIPES);
-    try{ render(); }catch(e){ console.error('Erreur au ré-affichage après synchro', e); }
-  }, err=>console.error('Écoute Firebase interrompue', err));
-}
+
 /* ---- Demandes de mes amis ----
-   Un ami (sans compte) remplit un petit formulaire via un lien (?demande=1) : la demande est écrite
-   dans le noeud "requests" de Firebase (création autorisée à tous par les règles, mais lecture,
-   modification et suppression réservées à Kélian une fois connecté). Un invité ne peut donc ni
-   lire les demandes des autres, ni toucher aux recettes. */
+   Un ami (sans compte) remplit un petit formulaire via un lien (?demande=<id du carnet>) : la demande est
+   écrite dans requests/<id du carnet>/ (création autorisée à tous par les règles, mais lecture,
+   modification et suppression réservées au propriétaire du carnet). */
 let REQUESTS = [];
-let requestsListenerAttached = false;
+let requestsRef = null;
 const REQ_STATUSES = ['nouvelle','en cours','faite'];
-function fbAddRequest(req){
-  if(!fbReady || !fbDb) return Promise.reject(new Error('Firebase indisponible'));
-  try{ return fbDb.ref('requests/'+req.id).set(req); }
+function fbAddRequest(ownerUid, req){
+  if(!fbReady || !fbDb || !ownerUid) return Promise.reject(new Error('Firebase indisponible'));
+  try{ return fbDb.ref('requests/'+ownerUid+'/'+req.id).set(req); }
   catch(e){ return Promise.reject(e); }
 }
 function fbUpdateRequest(id, patch){
-  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
-  try{ return fbDb.ref('requests/'+id).update(patch); }
+  if(!canSyncOwn()) return Promise.reject(new Error('Non autorisé'));
+  try{ return fbDb.ref('requests/'+myUid()+'/'+id).update(patch); }
   catch(e){ return Promise.reject(e); }
 }
 function fbDeleteRequest(id){
-  if(!fbReady || !isAuthed || !fbDb) return Promise.reject(new Error('Non connecté'));
-  try{ return fbDb.ref('requests/'+id).remove(); }
+  if(!canSyncOwn()) return Promise.reject(new Error('Non autorisé'));
+  try{ return fbDb.ref('requests/'+myUid()+'/'+id).remove(); }
   catch(e){ return Promise.reject(e); }
 }
 function sanitizeRequests(val){
@@ -583,35 +827,43 @@ function sanitizeRequests(val){
     .sort((a,b)=> String(b.date).localeCompare(String(a.date)));
 }
 function fbListenRequests(){
-  if(!fbReady || !isAuthed || requestsListenerAttached) return;
-  requestsListenerAttached = true;
-  fbDb.ref('requests').on('value', snap=>{
+  const u = myUid();
+  if(!fbReady || !u || requestsRef) return;
+  const ref = fbDb.ref('requests/'+u);
+  requestsRef = ref;
+  ref.on('value', snap=>{
     REQUESTS = sanitizeRequests(snap.val());
-    if(['home','requests','profile'].includes(state.view)){
-      try{ render(); }catch(e){ console.error('Ré-affichage demandes', e); }
-    }
-  }, err=>{ requestsListenerAttached = false; console.error('Écoute des demandes interrompue', err); });
+    rerenderIfNeeded();
+  }, err=>{ requestsRef = null; console.error('Écoute des demandes interrompue', err); });
 }
 function fbStopRequests(){
-  if(fbReady && requestsListenerAttached){ try{ fbDb.ref('requests').off(); }catch(e){} }
-  requestsListenerAttached = false;
+  if(requestsRef){ try{ requestsRef.off(); }catch(e){} requestsRef = null; }
   REQUESTS = [];
 }
-function requestLink(){ return location.origin + location.pathname + '?demande=1'; }
+function requestLink(){ return location.origin + location.pathname + '?demande=' + encodeURIComponent(myUid() || ''); }
 const isGuestPage = location.hash.startsWith('#guest=') || location.hash.startsWith('#g=')
   || new URLSearchParams(location.search).has('g') || new URLSearchParams(location.search).has('guest')
   || new URLSearchParams(location.search).has('demande');
 if(fbReady && !isGuestPage){
+  fbListenProfiles();
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
-    fbListenRecipes(); // la lecture est publique, on écoute dans tous les cas
-    if(user) fbListenRequests(); else fbStopRequests(); // les demandes ne sont lisibles que connecté
-    if(user) fbListenCooking(user.uid); else fbStopCooking();
+    if(user){
+      fbListenMe(user.uid);
+      fbListenCooking(user.uid);
+    } else {
+      fbStopMe(); fbStopRequests(); fbStopAccountRequests(); fbStopCooking();
+      isApproved = false; isAdmin = false; myProfile = null; myAccountRequest = null;
+    }
     try{ render(); }catch(e){}
   });
 }
 
-function persistRecipes(){ save(DB_KEY, RECIPES); }
+function persistRecipes(){
+  // Avec Firebase, la vérité est en ligne (cache par carnet) ; l'ancienne sauvegarde locale reste intacte pour la migration.
+  if(fbReady){ if(CB.uid && CB.uid === myUid()) writeCbCache(CB.uid, RECIPES); return; }
+  save(DB_KEY, RECIPES);
+}
 function persistShopping(){ save(SHOP_KEY, SHOPPING); }
 function persistMenu(){ save(MENU_KEY, MENU); }
 
@@ -629,7 +881,7 @@ function buildImportedRecipes(){
 
 const IMPORT_FLAG_KEY = 'mcc_import_20260918';
 try{
-  if(!localStorage.getItem(IMPORT_FLAG_KEY)){
+  if(!fbReady && !localStorage.getItem(IMPORT_FLAG_KEY)){
     RECIPES = RECIPES.filter(r => r.title !== 'Poulet Tikka Masala' && r.title !== 'Tarte aux légumes');
     const existingTitles = new Set(RECIPES.map(r=>r.title.toLowerCase()));
     buildImportedRecipes().forEach(r=>{
@@ -676,6 +928,7 @@ function toast(msg){
 
 /* ---------------- Nav render ---------------- */
 function renderNav(){
+  document.body.classList.toggle('on-landing', state.view === 'landing');
   const bottom = document.getElementById('bottomNav');
   const desktop = document.getElementById('desktopNav');
   bottom.innerHTML = NAV_ITEMS.map(n => `
@@ -835,14 +1088,28 @@ function bindCardEvents(root){
       const r = getRecipe(el.dataset.fav);
       if(!r){ toast('Cette recette est introuvable.'); return; }
       r.isFavorite = !r.isFavorite;
-      persistRecipes();
+      if(fbReady && !isOwnCookbook()){
+        // recette d'un autre carnet : le favori est personnel à cet appareil, on ne touche pas à la recette de l'autre
+        const k = CB.uid+':'+r.id;
+        if(r.isFavorite) remoteFavs[k] = true; else delete remoteFavs[k];
+        try{ localStorage.setItem(REMOTE_FAVS_KEY, JSON.stringify(remoteFavs)); }catch(e){}
+      } else {
+        persistRecipes();
+        fbSaveRecipe(r);
+      }
       render();
     });
   });
 }
 
 /* ---------------- MAIN RENDER ---------------- */
+/* Vues qui n'ont de sens qu'à l'intérieur d'un carnet : sans carnet ouvert, on revient à la page de choix. */
+const NEEDS_COOKBOOK = ['home','library','detail','edit','history','favorites','requests','menu'];
 function render(){
+  if(fbReady){
+    if(!CB.uid && NEEDS_COOKBOOK.includes(state.view)){ state.view = 'landing'; state.params = {}; }
+    if(state.view === 'accounts' && !isAdmin){ state.view = 'profile'; state.params = {}; }
+  }
   renderNav();
   const app = document.getElementById('app');
   let html = '';
@@ -858,6 +1125,8 @@ function render(){
       case 'favorites': html = renderFavorites(); break;
       case 'history': html = renderHistory(state.params.id); break;
       case 'requests': html = renderRequests(); break;
+      case 'landing': html = renderLanding(); break;
+      case 'accounts': html = renderAccounts(); break;
       default: html = renderHome();
     }
   }catch(e){
@@ -902,6 +1171,7 @@ function renderHome(){
   <div class="home-hero">
     <h1>CARNET DE CUISINE</h1>
     <p>Sublimer le simple, surprendre le palais.</p>
+    ${fbReady && CB.uid ? `<div class="cb-line"><span>Carnet de <b>${escapeHtml(CB.name || 'ce cuisinier')}</b>${isOwnCookbook()?' (le tien)':''}</span><button class="cb-switch" data-nav="landing">Changer de carnet</button></div>` : ''}
     <div class="search-bar">
       ${ICONS.search}
       <input type="search" id="homeSearch" placeholder="Rechercher une recette…" value="${escapeHtml(state.homeSearch)}">
@@ -948,18 +1218,22 @@ function renderHome(){
 
 /* ---------------- DEMANDES DE MES AMIS ---------------- */
 function requestsHomeCardHTML(){
-  const fresh = REQUESTS.filter(q=>q.status==='nouvelle').length;
-  if(canEdit() && isAuthed){
+  if(!fbReady) return '';
+  if(canEdit()){
+    const fresh = REQUESTS.filter(q=>q.status==='nouvelle').length;
     return `<div class="req-card" id="openRequests">
       ${ICONS.heart}
       <div><h3>Demandes de mes amis</h3><p>${REQUESTS.length ? (fresh ? fresh+' nouvelle'+(fresh>1?'s':'')+' demande'+(fresh>1?'s':'') : 'Aucune nouvelle demande') : 'Rien pour l\'instant'}</p></div>
       ${fresh?`<span class="req-badge">${fresh}</span>`:''}
     </div>`;
   }
-  return `<div class="req-card" id="openRequestForm">
-    ${ICONS.heart}
-    <div><h3>Une recette en tête ?</h3><p>Demande-moi une recette, je m'y mets !</p></div>
-  </div>`;
+  if(CB.uid && !isOwnCookbook()){
+    return `<div class="req-card" id="openRequestForm">
+      ${ICONS.heart}
+      <div><h3>Une recette en tête ?</h3><p>Demande-la à ${escapeHtml(CB.name || 'ce cuisinier')}, il s'y met !</p></div>
+    </div>`;
+  }
+  return '';
 }
 function fmtReqDate(iso){
   try{ return new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){ return ''; }
@@ -969,8 +1243,8 @@ function renderRequests(){
   let body;
   if(!fbReady){
     body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Connexion en ligne indisponible</div><div>Les demandes de tes amis arrivent via Internet. Vérifie ta connexion et recharge la page.</div></div>`;
-  } else if(!isAuthed){
-    body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Connecte-toi pour voir les demandes</div><div>Va dans « Profil », puis « Connexion ». Seul toi peux lire ces demandes.</div></div>`;
+  } else if(!(isAuthed && isApproved && isOwnCookbook())){
+    body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Ouvre ton carnet pour voir tes demandes</div><div>Connecte-toi avec ton compte puis ouvre « Mon carnet ». Seul toi peux lire les demandes de ton carnet.</div></div>`;
   } else if(!REQUESTS.length){
     body = `<div class="empty-state"><div style="font-weight:800;color:var(--brown);margin-bottom:4px">Aucune demande pour le moment</div><div>Partage le lien ci-dessus à tes amis : leurs demandes apparaîtront ici.</div></div>`;
   } else {
@@ -1009,7 +1283,7 @@ function bindRequestsEvents(app){
   const open = document.getElementById('openRequests');
   if(open) open.onclick = ()=> go('requests');
   const form = document.getElementById('openRequestForm');
-  if(form) form.onclick = ()=>{ location.href = requestLink(); };
+  if(form) form.onclick = ()=>{ location.href = location.origin + location.pathname + '?demande=' + encodeURIComponent(CB.uid || ''); };
   const copy = document.getElementById('reqCopyLink');
   if(copy) copy.onclick = ()=>{
     const link = requestLink();
@@ -1045,13 +1319,13 @@ function bindRequestsEvents(app){
 }
 
 /* Page publique du formulaire (lien ?demande=1) : aucune connexion requise, aucun accès aux recettes. */
-function renderRequestPage(){
+function renderRequestPage(ownerUid, ownerName){
   document.body.innerHTML = `
   <div style="min-height:100vh;padding:28px 20px 60px;max-width:480px;margin:0 auto">
     <div style="text-align:center">
       <svg viewBox="0 0 100 100" style="width:56px;height:56px;margin:0 auto 18px"><circle cx="50" cy="50" r="48" fill="#C1652F"/><path d="M50 20c-9 0-16 6-18 14-7 1-12 7-12 14 0 6 4 11 9 13v9h42v-9c5-2 9-7 9-13 0-7-5-13-12-14-2-8-9-14-18-14z" fill="#FBF3E6"/></svg>
       <h1 class="serif" style="font-size:1.5rem;margin:0 0 6px">Demande une recette</h1>
-      <p style="color:var(--brown-soft);margin:0 0 20px">Dis-moi ce que tu aimerais voir dans le Carnet de Cuisine, je m'y mets !</p>
+      <p style="color:var(--brown-soft);margin:0 0 20px">Dis à <b>${escapeHtml(ownerName || 'ce cuisinier')}</b> ce que tu aimerais voir dans son carnet : il s'y met !</p>
     </div>
     <div class="card" style="padding:22px;text-align:left" id="rqCard">
       <label class="field-label">Ton prénom</label>
@@ -1079,16 +1353,16 @@ function renderRequestPage(){
     const req = {id:uid(), name:name.slice(0,60), text:text.slice(0,120), status:'nouvelle', date:nowISO()};
     if(note) req.note = note.slice(0,500);
     sendBtn.disabled = true; sendBtn.textContent = 'Envoi en cours…'; msg.textContent = '';
-    fbAddRequest(req).then(()=>{
+    fbAddRequest(ownerUid, req).then(()=>{
       try{ localStorage.setItem('mcc_last_request', String(Date.now())); }catch(e){}
       document.getElementById('rqCard').innerHTML = `
         <div style="text-align:center;padding:10px 0">
           <div style="font-size:2rem;margin-bottom:6px">✓</div>
           <h2 class="serif" style="margin:0 0 6px">Demande envoyée !</h2>
-          <p style="color:var(--brown-soft);margin:0 0 16px">Merci ${escapeHtml(name)}, je regarde ça très vite.</p>
+          <p style="color:var(--brown-soft);margin:0 0 16px">Merci ${escapeHtml(name)} ! ${escapeHtml(ownerName || 'Le cuisinier')} verra ta demande très vite.</p>
           <button class="btn btn-outline btn-block" id="rqAgain">Faire une autre demande</button>
         </div>`;
-      document.getElementById('rqAgain').onclick = ()=> renderRequestPage();
+      document.getElementById('rqAgain').onclick = ()=> renderRequestPage(ownerUid, ownerName);
     }).catch(()=>{
       sendBtn.disabled = false; sendBtn.textContent = 'Envoyer ma demande';
       msg.textContent = 'Envoi impossible pour le moment. Tu peux copier ta demande et me l\'envoyer directement.';
@@ -1099,6 +1373,279 @@ function renderRequestPage(){
         (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>{ copyBtn.textContent = 'Copié !'; }).catch(()=>{});
       };
     });
+  };
+}
+
+/* ---------------- PAGE DES CARNETS + COMPTES ---------------- */
+function cbAvatar(name, muted){
+  return `<div class="cb-avatar ${muted?'muted':''}">${escapeHtml(((name||'?').trim().charAt(0) || '?').toUpperCase())}</div>`;
+}
+function renderLanding(){
+  const me = myUid();
+  const mine = (COOKBOOKS || []).find(c => c.uid === me);
+  let mineCard;
+  if(!isAuthed){
+    mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('+', true)}<div><h3>Mon carnet</h3><p>Connecte-toi ou crée un compte pour avoir le tien</p></div><span class="cb-arrow">›</span></div>`;
+  } else if(isApproved){
+    const nm = (mine && mine.name) || (myProfile && myProfile.name) || 'Mon carnet';
+    const cnt = mine ? mine.count : 0;
+    mineCard = `<div class="cb-card cb-mine" data-opencb="${escapeHtml(me)}" data-cbname="${escapeHtml(nm)}">${cbAvatar(nm)}<div><h3>Mon carnet</h3><p>${escapeHtml(nm)} · ${cnt} recette${cnt>1?'s':''}</p></div><span class="cb-arrow">›</span></div>`;
+  } else if(myAccountRequest){
+    mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('…', true)}<div><h3>Mon carnet</h3><p>Ta demande de compte attend d'être validée</p></div><span class="cb-arrow">›</span></div>`;
+  } else {
+    mineCard = `<div class="cb-card" data-nav="profile">${cbAvatar('+', true)}<div><h3>Mon carnet</h3><p>${adminsExist === false ? 'Première installation : deviens administrateur' : 'Demande l\'accès pour avoir ton carnet'}</p></div><span class="cb-arrow">›</span></div>`;
+  }
+  const others = (COOKBOOKS || []).filter(c => c.uid !== me);
+  const list = COOKBOOKS === null
+    ? '<p style="color:var(--brown-soft);text-align:center">Chargement des carnets…</p>'
+    : (others.length
+      ? others.map(c=>`<div class="cb-card" data-opencb="${escapeHtml(c.uid)}" data-cbname="${escapeHtml(c.name)}">${cbAvatar(c.name)}<div><h3>${escapeHtml(c.name)}</h3><p>${c.count} recette${c.count>1?'s':''}</p></div><span class="cb-arrow">›</span></div>`).join('')
+      : '<p style="color:var(--brown-soft);text-align:center">Aucun autre carnet pour le moment.</p>');
+  const adminBanner = (isAdmin && ACCOUNT_REQUESTS.length)
+    ? `<div class="cb-card" data-nav="accounts">${cbAvatar('!', false)}<div><h3>${ACCOUNT_REQUESTS.length} demande${ACCOUNT_REQUESTS.length>1?'s':''} de compte</h3><p>À accepter ou refuser</p></div><span class="cb-arrow">›</span></div>` : '';
+  return `
+  <div class="home-hero">
+    <h1>CARNET DE CUISINE</h1>
+    <p>Sublimer le simple, surprendre le palais.</p>
+  </div>
+  ${adminBanner}
+  ${cookingResumeCardHTML()}
+  <div class="section-title">Mon carnet</div>
+  ${mineCard}
+  <div class="section-title">Les carnets des autres cuisiniers</div>
+  ${list}
+  <div style="text-align:center;margin:26px 0 10px"><button class="btn btn-outline btn-sm" data-nav="profile">Mon espace</button></div>`;
+}
+function accountBoxHTML(){
+  if(!fbReady){
+    return `<div class="backup-box"><h3 style="margin-top:0">Compte</h3><p style="margin:0;font-size:0.85rem;color:var(--brown-soft)">Connexion indisponible pour le moment : l'app fonctionne en mode local sur cet appareil.</p></div>`;
+  }
+  if(!isAuthed){
+    const tab = state.authTab === 'signup' ? 'signup' : 'login';
+    return `<div class="backup-box">
+      <h3 style="margin-top:0">Compte</h3>
+      <div class="auth-tabs">
+        <button class="${tab==='login'?'active':''}" data-authtab="login">Se connecter</button>
+        <button class="${tab==='signup'?'active':''}" data-authtab="signup">Créer un compte</button>
+      </div>
+      ${tab === 'login' ? `
+        <div class="field"><label class="field-label">E-mail</label><input type="email" id="fbEmailInput" placeholder="toi@exemple.fr"></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Mot de passe</label><input type="password" id="fbPasswordInput"></div>
+        <button class="btn btn-primary btn-block" id="fbSignInBtn" style="margin-top:14px">Se connecter</button>
+        <div id="fbSignInError" style="color:#B23A2F;font-size:0.82rem;margin-top:8px"></div>
+      ` : `
+        <p style="margin:0 0 12px;font-size:0.82rem;color:var(--brown-soft)">Crée ton compte pour avoir ton propre carnet. L'administrateur validera ta demande ; en attendant tu peux consulter tous les carnets et donner ton avis.</p>
+        <div class="field"><label class="field-label">Ton prénom (affiché sur ton carnet)</label><input type="text" id="fbSignUpName" maxlength="40" placeholder="Prénom"></div>
+        <div class="field"><label class="field-label">E-mail</label><input type="email" id="fbSignUpEmail" placeholder="toi@exemple.fr"></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Mot de passe (6 caractères minimum)</label><input type="password" id="fbSignUpPassword"></div>
+        <button class="btn btn-primary btn-block" id="fbSignUpBtn" style="margin-top:14px">Demander mon compte</button>
+        <div id="fbSignUpError" style="color:#B23A2F;font-size:0.82rem;margin-top:8px"></div>
+      `}
+    </div>`;
+  }
+  const email = escapeHtml((fbAuth && fbAuth.currentUser && fbAuth.currentUser.email) || '');
+  const status = isAdmin ? '<span class="status-pill admin">Administrateur</span>'
+    : isApproved ? '<span class="status-pill ok">Cuisinier</span>'
+    : myAccountRequest ? '<span class="status-pill">Demande en attente de validation</span>'
+    : '<span class="status-pill">Compte non validé</span>';
+  let body = '';
+  if(!isApproved){
+    if(adminsExist === false){
+      body = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:12px 0">Première installation : personne n'est encore administrateur. À faire <b>une seule fois</b>, avec ton compte.</p>
+        <div class="field"><label class="field-label">Ton prénom (affiché sur ton carnet)</label><input type="text" id="fbClaimName" maxlength="40" placeholder="Prénom"></div>
+        <button class="btn btn-primary btn-block" id="fbClaimBtn">Devenir administrateur</button>`;
+    } else if(!myAccountRequest){
+      body = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:12px 0">Ton compte n'est pas encore validé. Envoie une demande à l'administrateur.</p>
+        <div class="field"><label class="field-label">Ton prénom (affiché sur ton carnet)</label><input type="text" id="fbReqName" maxlength="40" placeholder="Prénom"></div>
+        <button class="btn btn-primary btn-block" id="fbReqAccessBtn">Demander l'accès</button>`;
+    } else {
+      body = `<p style="font-size:0.85rem;color:var(--brown-soft);margin:12px 0 0">Ta demande est en cours d'examen. Dès qu'elle est acceptée, tu peux ouvrir ton carnet et ajouter tes recettes. En attendant, tu peux consulter tous les carnets et donner ton avis.</p>`;
+    }
+  } else {
+    body = `
+      <div class="field" style="margin-top:14px"><label class="field-label">Nom affiché sur mon carnet</label>
+        <div style="display:flex;gap:8px"><input type="text" id="fbNameInput" maxlength="40" value="${escapeHtml((myProfile && myProfile.name) || '')}"><button class="btn btn-ghost btn-sm" id="fbRenameBtn">Enregistrer</button></div></div>
+      <button class="btn btn-primary btn-block" data-opencb="${escapeHtml(myUid())}" data-cbname="${escapeHtml((myProfile && myProfile.name) || '')}">Ouvrir mon carnet</button>`;
+    if(isOwnCookbook()){
+      body += `<button class="btn btn-outline btn-block" id="fbPublishBtn" style="margin-top:10px">Publier mes recettes en ligne</button>`;
+    }
+  }
+  if(isAdmin){
+    body += `
+      <div style="border-top:1px solid var(--beige);margin-top:16px;padding-top:14px">
+        <div class="field-label">Administration</div>
+        <button class="btn btn-ghost btn-block" data-nav="accounts">Demandes de compte et membres${ACCOUNT_REQUESTS.length?` (${ACCOUNT_REQUESTS.length})`:''}</button>
+        <button class="btn btn-ghost btn-block" id="fbMigrateBtn" style="margin-top:10px">Importer mes anciennes recettes dans mon carnet</button>
+      </div>`;
+  }
+  return `<div class="backup-box">
+    <h3 style="margin-top:0">Compte</h3>
+    <p style="margin:0 0 8px;font-size:0.85rem">${email} ${status}</p>
+    ${body}
+    <button class="btn btn-outline btn-block" id="fbSignOutBtn" style="margin-top:14px">Se déconnecter</button>
+  </div>`;
+}
+function renderAccounts(){
+  if(!isAdmin) return emptyState('Réservé à l\'administrateur', '', null, null);
+  const me = myUid();
+  const members = (COOKBOOKS || []).filter(c => c.uid !== me);
+  const reqs = ACCOUNT_REQUESTS.length
+    ? ACCOUNT_REQUESTS.map(q=>`
+      <div class="req-item">
+        <div class="req-title">${escapeHtml(q.name)}</div>
+        <div class="req-meta">${escapeHtml(q.email || '')} · ${escapeHtml(fmtReqDate(q.date))}</div>
+        <div class="req-actions">
+          <button class="btn btn-primary btn-sm" data-acctok="${escapeHtml(q.uid)}">Accepter</button>
+          <button class="btn btn-outline btn-sm" data-acctno="${escapeHtml(q.uid)}">Refuser</button>
+        </div>
+      </div>`).join('')
+    : '<p style="color:var(--brown-soft)">Aucune demande en attente.</p>';
+  const mem = members.length
+    ? members.map(c=>`
+      <div class="req-item">
+        <div class="req-title">${escapeHtml(c.name)}</div>
+        <div class="req-meta">${c.count} recette${c.count>1?'s':''}</div>
+        <div class="req-actions"><button class="btn btn-outline btn-sm" data-acctrm="${escapeHtml(c.uid)}" data-acctname="${escapeHtml(c.name)}">Retirer l'accès</button></div>
+      </div>`).join('')
+    : '<p style="color:var(--brown-soft)">Aucun autre membre pour le moment.</p>';
+  return `
+  <div class="top-header-bar"><button class="icon-btn" data-back>${ICONS.back||'←'}</button><h2>Comptes</h2></div>
+  <div class="section-title">Demandes en attente</div>
+  ${reqs}
+  <div class="section-title">Membres</div>
+  ${mem}`;
+}
+function signUpErrorText(e){
+  const c = e && e.code;
+  if(c === 'auth/email-already-in-use') return 'Cette adresse e-mail a déjà un compte. Connecte-toi plutôt.';
+  if(c === 'auth/weak-password') return 'Mot de passe trop court (6 caractères minimum).';
+  if(c === 'auth/invalid-email') return 'Adresse e-mail invalide.';
+  if(c === 'auth/network-request-failed') return 'Pas de connexion. Réessaie.';
+  return 'Création du compte impossible pour le moment.';
+}
+function showReviewModal(r){
+  let rating = 8;
+  const cook = isAuthed && isApproved;
+  const defName = cook ? ((myProfile && myProfile.name) || '') : (() => { try{ return localStorage.getItem('mcc_guest_name') || ''; }catch(e){ return ''; } })();
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+  <div class="modal-overlay" id="reviewOverlay">
+    <div class="modal">
+      <h3>Donner mon avis</h3>
+      <p style="color:var(--brown-soft);margin-top:-8px">Sur « ${escapeHtml(r.title)} » — ton avis apparaîtra avec le badge ${cook ? 'Cuisinier' : 'Invité'}.</p>
+      <div class="field"><label class="field-label">Ton prénom</label><input type="text" id="rvName" maxlength="40" value="${escapeHtml(defName)}" ${cook?'readonly':''}></div>
+      <div class="star-picker" id="rvStars">${Array.from({length:11},(_,i)=>`<button data-star="${i}" class="${i===8?'sel':''}">${i}</button>`).join('')}</div>
+      <div class="field"><label class="field-label">Commentaire</label><textarea id="rvComment" maxlength="1000" placeholder="Qu'en as-tu pensé ?"></textarea></div>
+      <button class="btn btn-primary btn-block" id="rvSend">Envoyer mon avis</button>
+      <div id="rvMsg" style="color:#B23A2F;font-size:0.82rem;margin-top:8px;text-align:center"></div>
+    </div>
+  </div>`;
+  root.querySelectorAll('#rvStars button').forEach(b=>{
+    b.onclick = ()=>{ rating = parseInt(b.dataset.star); root.querySelectorAll('#rvStars button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); };
+  });
+  document.getElementById('reviewOverlay').onclick = (e)=>{ if(e.target.id === 'reviewOverlay') root.innerHTML = ''; };
+  document.getElementById('rvSend').onclick = ()=>{
+    const name = document.getElementById('rvName').value.trim();
+    const comment = document.getElementById('rvComment').value.trim();
+    const msg = document.getElementById('rvMsg');
+    if(!name){ msg.textContent = 'Indique ton prénom.'; return; }
+    const review = {id:uid(), name:name.slice(0,40), rating, comment:comment.slice(0,1000), date:nowISO(), kind: cook ? 'cuisinier' : 'invite'};
+    if(cook) review.uid = myUid();
+    const btn = document.getElementById('rvSend');
+    btn.disabled = true; btn.textContent = 'Envoi en cours…';
+    fbAddReview(CB.uid, r.id, review).then(()=>{
+      if(!cook){ try{ localStorage.setItem('mcc_guest_name', name); }catch(e){} }
+      root.innerHTML = '';
+      toast('Merci pour ton avis !');
+    }).catch(()=>{
+      btn.disabled = false; btn.textContent = 'Envoyer mon avis';
+      msg.textContent = 'Envoi impossible pour le moment. Réessaie.';
+    });
+  };
+}
+/* Liaison des boutons : comptes, carnets, avis, copie */
+function bindAccountEvents(app){
+  app.querySelectorAll('[data-opencb]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      openCookbook(el.dataset.opencb, el.dataset.cbname).then(()=>{ go('home'); });
+      go('home');
+    });
+  });
+  app.querySelectorAll('[data-authtab]').forEach(el=>{
+    el.onclick = ()=>{ state.authTab = el.dataset.authtab; render(); };
+  });
+  const su = document.getElementById('fbSignUpBtn');
+  if(su) su.onclick = ()=>{
+    const name = document.getElementById('fbSignUpName').value.trim();
+    const email = document.getElementById('fbSignUpEmail').value.trim();
+    const pw = document.getElementById('fbSignUpPassword').value;
+    const err = document.getElementById('fbSignUpError');
+    err.textContent = '';
+    if(!name){ err.textContent = 'Indique ton prénom.'; return; }
+    if(!/^\S+@\S+\.\S+$/.test(email)){ err.textContent = 'Adresse e-mail invalide.'; return; }
+    if(pw.length < 6){ err.textContent = 'Mot de passe trop court (6 caractères minimum).'; return; }
+    su.disabled = true; su.textContent = 'Envoi…';
+    fbSignUp(name, email, pw).then(()=> toast('Demande envoyée !')).catch(e=>{
+      su.disabled = false; su.textContent = 'Demander mon compte';
+      err.textContent = signUpErrorText(e);
+    });
+  };
+  const claim = document.getElementById('fbClaimBtn');
+  if(claim) claim.onclick = ()=>{
+    const name = document.getElementById('fbClaimName').value.trim();
+    if(!name){ toast('Indique ton prénom.'); return; }
+    claim.disabled = true;
+    fbClaimAdmin(name).then(()=>{ adminsExist = true; toast('Tu es administrateur !'); })
+      .catch(()=>{ claim.disabled = false; toast('Impossible : un administrateur existe déjà, ou les règles ne sont pas à jour.'); });
+  };
+  const reqAcc = document.getElementById('fbReqAccessBtn');
+  if(reqAcc) reqAcc.onclick = ()=>{
+    const name = document.getElementById('fbReqName').value.trim();
+    if(!name){ toast('Indique ton prénom.'); return; }
+    reqAcc.disabled = true;
+    fbRequestAccess(name).then(()=> toast('Demande envoyée !')).catch(()=>{ reqAcc.disabled = false; toast('Envoi impossible, réessaie.'); });
+  };
+  const ren = document.getElementById('fbRenameBtn');
+  if(ren) ren.onclick = ()=>{
+    const name = document.getElementById('fbNameInput').value.trim();
+    if(!name){ toast('Le nom ne peut pas être vide.'); return; }
+    fbRenameMe(name).then(()=> toast('Nom enregistré')).catch(()=> toast('Enregistrement impossible.'));
+  };
+  const mig = document.getElementById('fbMigrateBtn');
+  if(mig) mig.onclick = ()=>{
+    if(!confirm('Ajouter à ton carnet toutes les anciennes recettes (celles déjà en ligne et celles de cet appareil) ? Rien de ce qui est déjà dans ton carnet ne sera écrasé.')) return;
+    mig.disabled = true;
+    fbMigrateLegacy().then(n=>{ mig.disabled = false; toast(n ? n+' recette'+(n>1?'s':'')+' ajoutée'+(n>1?'s':'')+' à ton carnet' : 'Rien de nouveau à importer'); })
+      .catch(()=>{ mig.disabled = false; toast('Import impossible, vérifie ta connexion et les règles Firebase.'); });
+  };
+  app.querySelectorAll('[data-acctok]').forEach(b=>{
+    b.onclick = ()=>{
+      const q = ACCOUNT_REQUESTS.find(x=>x.uid === b.dataset.acctok); if(!q) return;
+      b.disabled = true;
+      fbApproveAccount(q).then(()=> toast(q.name+' a maintenant un carnet')).catch(()=>{ b.disabled = false; toast('Action impossible.'); });
+    };
+  });
+  app.querySelectorAll('[data-acctno]').forEach(b=>{
+    b.onclick = ()=>{
+      if(!confirm('Refuser cette demande ?')) return;
+      fbRefuseAccount(b.dataset.acctno).catch(()=> toast('Action impossible.'));
+    };
+  });
+  app.querySelectorAll('[data-acctrm]').forEach(b=>{
+    b.onclick = ()=>{
+      if(!confirm('Retirer l\'accès de '+(b.dataset.acctname||'ce membre')+' ? Il ne pourra plus modifier son carnet.')) return;
+      fbRemoveMember(b.dataset.acctrm).catch(()=> toast('Action impossible.'));
+    };
+  });
+  const give = document.getElementById('giveReview');
+  if(give) give.onclick = ()=>{ const r = getRecipe(give.dataset.recipeid); if(r) showReviewModal(r); };
+  const copyMine = document.getElementById('copyToMine');
+  if(copyMine) copyMine.onclick = ()=>{
+    const r = getRecipe(copyMine.dataset.recipeid); if(!r) return;
+    if(!isAuthed || !isApproved){ toast('Il te faut un compte validé pour copier une recette.'); go('profile'); return; }
+    copyMine.disabled = true;
+    fbCopyRecipeToMine(r).then(()=>{ copyMine.disabled = false; toast('Recette copiée dans ton carnet !'); })
+      .catch(()=>{ copyMine.disabled = false; toast('Copie impossible, réessaie.'); });
   };
 }
 
@@ -1224,7 +1771,7 @@ function renderDetail(id){
     ${(r.realizations||[]).slice(0,3).map(h=>historyItemHTML(h)).join('')}
     ` : ''}
 
-    <div class="section-title">Avis des invités</div>
+    <div class="section-title">Avis</div>
     ${renderGuestReviewsBlock(r)}
 
     ${r.personalComment ? `
@@ -1292,9 +1839,22 @@ function combinedRating(r){
   if(guests !== null) return guests;
   return null;
 }
+function kindBadgeHTML(kind){
+  return kind === 'cuisinier'
+    ? `<span class="kind-badge cuisinier">${ICONS.toque} Cuisinier</span>`
+    : `<span class="kind-badge">${ICONS.guest} Invité</span>`;
+}
 function renderGuestReviewsBlock(r){
-  const list = r.guestReviews || [];
+  const list = [...(r.guestReviews || [])].sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')));
   const avg = guestAvg(r);
+  const mineView = !fbReady || isOwnCookbook();
+  let buttons = '';
+  if(mineView){
+    if(canEdit()) buttons = `<button class="btn btn-outline btn-block" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>`;
+  } else {
+    buttons = `<button class="btn btn-primary btn-block" id="giveReview" data-recipeid="${r.id}">Donner mon avis</button>
+      <button class="btn btn-outline btn-block" id="copyToMine" data-recipeid="${r.id}" style="margin-top:10px">Copier dans mon carnet</button>`;
+  }
   return `
   <div class="card" style="padding:16px 18px;margin-bottom:14px">
     ${avg!==null ? `
@@ -1302,17 +1862,15 @@ function renderGuestReviewsBlock(r){
         <span style="font-family:var(--serif);font-weight:700;font-size:1.3rem;color:var(--terracotta)">${avg.toFixed(1)}/10</span>
         <span style="color:var(--brown-soft);font-size:0.85rem">${list.length} avis</span>
       </div>
-      ${list.slice(0,4).map(g=>`
+      ${list.slice(0,6).map(g=>`
         <div style="padding:8px 0;border-top:1px solid var(--beige)">
           <div style="display:flex;justify-content:space-between;font-size:0.82rem;font-weight:700">
-            <span>${escapeHtml(g.name||'Invité')}</span><span style="color:var(--gold)">★ ${g.rating}/10</span>
+            <span>${escapeHtml(g.name||'Invité')}${kindBadgeHTML(g.kind)}</span><span style="color:var(--gold)">★ ${g.rating}/10</span>
           </div>
           ${g.comment?`<p style="margin:4px 0 0;font-size:0.85rem;color:var(--brown-soft);font-style:italic">"${escapeHtml(g.comment)}"</p>`:''}
         </div>`).join('')}
-    ` : `<p style="margin:0 0 12px;color:var(--brown-soft);font-size:0.88rem">Aucun avis d'invité pour le moment. Partage un lien pour en recevoir.</p>`}
-    <div style="display:flex;gap:10px;margin-top:${avg!==null?'14px':'0'}">
-      <button class="btn btn-outline btn-block" id="shareForReview" data-recipeid="${r.id}">Partager pour avis</button>
-    </div>
+    ` : `<p style="margin:0 0 ${buttons?'12px':'0'};color:var(--brown-soft);font-size:0.88rem">${mineView ? 'Aucun avis pour le moment. Partage un lien pour en recevoir.' : 'Aucun avis pour le moment : sois le premier !'}</p>`}
+    ${buttons ? `<div style="margin-top:${avg!==null?'14px':'0'}">${buttons}</div>` : ''}
   </div>`;
 }
 
@@ -1867,25 +2425,13 @@ function renderProfile(){
   return `
   <div class="top-header-bar"><h2>Mon espace</h2></div>
 
-  <div class="backup-box">
-    <h3 style="margin-top:0">Connexion</h3>
-    ${isAuthed ? `
-      <p style="margin:0 0 12px">Connecté${(fbAuth&&fbAuth.currentUser)?' en tant que '+escapeHtml(fbAuth.currentUser.email):''}. Tu peux modifier tes recettes.</p>
-      <button class="btn btn-primary btn-block" id="fbPublishBtn">Publier mes recettes en ligne</button>
-      <button class="btn btn-outline btn-block" id="fbSignOutBtn" style="margin-top:10px">Se déconnecter</button>
-    ` : `
-      <p style="margin:0 0 12px;font-size:0.85rem;color:var(--brown-soft)">Connecte-toi pour pouvoir modifier tes recettes. Sans connexion, tu peux tout consulter mais pas modifier.</p>
-      <div class="field"><label class="field-label">E-mail</label><input type="email" id="fbEmailInput" placeholder="toi@exemple.fr"></div>
-      <div class="field" style="margin-bottom:0"><label class="field-label">Mot de passe</label><input type="password" id="fbPasswordInput"></div>
-      <button class="btn btn-primary btn-block" id="fbSignInBtn" style="margin-top:14px">Se connecter</button>
-      <div id="fbSignInError" style="color:#B23A2F;font-size:0.82rem;margin-top:8px"></div>
-    `}
-  </div>
+  ${accountBoxHTML()}
 
-  <ul class="menu-list">
-    <li data-nav="library">${ICONS.book}<span class="t">Mes recettes</span><span class="n">${RECIPES.length}</span></li>
-    <li data-nav="favorites">${ICONS.heart}<span class="t">Mes favoris</span><span class="n">${RECIPES.filter(r=>r.isFavorite).length}</span></li>
-    ${isAuthed?`<li data-nav="requests">${ICONS.heart}<span class="t">Demandes de mes amis</span><span class="n">${REQUESTS.filter(q=>q.status==='nouvelle').length}</span></li>`:''}
+  <ul class="menu-list" style="margin-top:18px">
+    ${(!fbReady || CB.uid) ? `<li data-nav="library">${ICONS.book}<span class="t">${isOwnCookbook() ? 'Mes recettes' : 'Recettes de '+escapeHtml(CB.name||'ce carnet')}</span><span class="n">${RECIPES.length}</span></li>
+    <li data-nav="favorites">${ICONS.heart}<span class="t">Mes favoris</span><span class="n">${RECIPES.filter(r=>r.isFavorite).length}</span></li>` : ''}
+    ${fbReady && CB.uid ? `<li data-nav="landing">${ICONS.book}<span class="t">Changer de carnet</span><span class="n">${escapeHtml(CB.name||'')}</span></li>` : ''}
+    ${canEdit() && fbReady ? `<li data-nav="requests">${ICONS.heart}<span class="t">Demandes de mes amis</span><span class="n">${REQUESTS.filter(q=>q.status==='nouvelle').length}</span></li>` : ''}
   </ul>
 
   <div class="backup-box">
@@ -1908,9 +2454,9 @@ function renderProfile(){
     <div class="ts">Dernière sauvegarde : ${lastBackup}</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-primary" id="exportBackup">Exporter toutes mes recettes</button>
-      <label class="btn btn-outline" id="importBackupLabel" style="text-align:center">Importer une sauvegarde
+      ${canEdit() ? `<label class="btn btn-outline" id="importBackupLabel" style="text-align:center">Importer une sauvegarde
         <input type="file" accept=".json" id="importBackup" class="visually-hidden-file">
-      </label>
+      </label>` : ''}
     </div>
     <p style="font-size:0.78rem;color:var(--brown-soft);margin-top:12px;margin-bottom:0">
       Tes recettes sont enregistrées automatiquement sur cet appareil. Exporte régulièrement une sauvegarde pour la conserver ou la transférer sur un autre appareil.
@@ -1952,6 +2498,7 @@ function pushProgress(){
   cookPushTimer = setTimeout(()=>{
     if(!cookProgress) return;
     const rec = {recipeId:cookProgress.recipeId, stepIndex:cookProgress.stepIndex||0, servings:cookProgress.servings||1,
+                 cookbookUid:cookProgress.cookbookUid||'', title:String(cookProgress.title||'').slice(0,200), totalSteps:cookProgress.totalSteps||0,
                  timers:cookProgress.timers||[], updatedAt:cookProgress.updatedAt};
     try{
       fbDb.ref('cooking/'+fbAuth.currentUser.uid).set(rec)
@@ -1989,7 +2536,7 @@ function fbListenCooking(uid){
     const localAt = cookProgress ? (cookProgress.updatedAt||0) : 0;
     if((v.updatedAt||0) > localAt){
       if(state.cooking) return; // écran de cuisine ouvert ici : on ne le bouscule pas
-      cookProgress = {recipeId:v.recipeId, stepIndex:v.stepIndex||0, servings:v.servings||1, timers:v.timers, updatedAt:v.updatedAt, synced:true};
+      cookProgress = {recipeId:v.recipeId, stepIndex:v.stepIndex||0, servings:v.servings||1, cookbookUid:v.cookbookUid||'', title:v.title||'', totalSteps:v.totalSteps||0, timers:v.timers, updatedAt:v.updatedAt, synced:true};
       try{ localStorage.setItem(COOK_PROGRESS_KEY, JSON.stringify(cookProgress)); }catch(e){}
       refreshIfHome();
     } else if(cookProgress && localAt > (v.updatedAt||0)){
@@ -2006,9 +2553,11 @@ function fbStopCooking(){
 function cookingResumeCardHTML(){
   if(!cookProgress) return '';
   const r = getRecipe(cookProgress.recipeId);
-  if(!r || !r.steps.length) return '';
-  const total = r.steps.length;
-  const idx = Math.min(Math.max(0, cookProgress.stepIndex||0), total-1);
+  const foreign = !!(fbReady && cookProgress.cookbookUid && cookProgress.cookbookUid !== CB.uid);
+  if(!(r && r.steps.length) && !(foreign && cookProgress.title)) return '';
+  const title = r ? r.title : cookProgress.title;
+  const total = r ? r.steps.length : (cookProgress.totalSteps || 0);
+  const idx = total ? Math.min(Math.max(0, cookProgress.stepIndex||0), total-1) : Math.max(0, cookProgress.stepIndex||0);
   const now = Date.now();
   const pending = toArray(cookProgress.timers).filter(t=>t && !t.done);
   let timerTxt = '';
@@ -2022,14 +2571,20 @@ function cookingResumeCardHTML(){
   <div class="resume-card">
     <button class="rc-x" id="abandonCooking" aria-label="Abandonner cette recette">×</button>
     <div class="rc-info">
-      <h3>${escapeHtml(r.title)}</h3>
-      <p>Étape ${idx+1} sur ${total}${timerTxt}</p>
+      <h3>${escapeHtml(title)}</h3>
+      <p>Étape ${idx+1}${total ? ' sur '+total : ''}${timerTxt}</p>
     </div>
     <button class="btn btn-sm" id="resumeCooking">Reprendre</button>
   </div>`;
 }
 function resumeCooking(){
   if(!cookProgress) return;
+  if(fbReady && cookProgress.cookbookUid && cookProgress.cookbookUid !== CB.uid){
+    // la recette est dans un autre carnet : on l'ouvre d'abord, puis on reprend
+    const target = cookProgress.cookbookUid;
+    openCookbook(target).then(()=>{ if(cookProgress && CB.uid === target){ go('home'); resumeCooking(); } });
+    return;
+  }
   const r = getRecipe(cookProgress.recipeId);
   if(!r || !r.steps.length){ toast('Cette recette est introuvable.'); return; }
   // On récupère les minuteurs enregistrés (venant éventuellement d'un autre appareil) sans doubler ceux déjà actifs ici
@@ -2056,7 +2611,11 @@ function persistCookingState(){
     else sessionStorage.removeItem(COOKING_STATE_KEY);
   }catch(e){}
   if(state.cooking){
-    cookProgress = Object.assign(cookProgress || {}, {recipeId:state.cooking.recipeId, stepIndex:state.cooking.stepIndex||0, servings:state.cooking.servings});
+    const cr = getRecipe(state.cooking.recipeId);
+    cookProgress = Object.assign(cookProgress || {}, {
+      recipeId:state.cooking.recipeId, stepIndex:state.cooking.stepIndex||0, servings:state.cooking.servings,
+      cookbookUid: CB.uid || '', title: cr ? cr.title : ((cookProgress && cookProgress.title) || ''), totalSteps: cr ? cr.steps.length : ((cookProgress && cookProgress.totalSteps) || 0)
+    });
     saveProgress();
   }
 }
@@ -2064,7 +2623,7 @@ function startCookingMode(recipeId){
   const r = getRecipe(recipeId);
   if(!r) return;
   if(cookProgress && cookProgress.recipeId === recipeId){ resumeCooking(); return; }
-  if(cookProgress && getRecipe(cookProgress.recipeId)){
+  if(cookProgress && (getRecipe(cookProgress.recipeId) || cookProgress.title)){
     if(!confirm('Une autre recette est en cours. L\'abandonner pour commencer celle-ci ?')) return;
   }
   clearProgress();
@@ -2293,7 +2852,10 @@ function showIngredientsPanel(r){
 function finishCooking(){
   const r = getRecipe(state.cooking.recipeId);
   stopCookingMode();
-  showRatingModal(r);
+  if(!r) return;
+  if(canEdit()) showRatingModal(r);
+  else if(fbReady && !isOwnCookbook()) showReviewModal(r); // recette d'un autre carnet : on laisse un avis
+  else toast('Bon appétit !');
 }
 
 /* ---------------- MODALS ---------------- */
@@ -2419,14 +2981,14 @@ function buildGuestLink(r){
   const base = location.href.split('#')[0];
   // Lien court : la recette est déjà (ou vient d'être) publiée sur Firebase, l'invité la récupérera
   // directement en ligne — seul l'identifiant (et le contact, minuscule) voyage dans le lien.
-  if(fbReady && isAuthed){
+  if(canSyncOwn()){
     fbSaveRecipe(r); // garantit que la version partagée est bien celle d'aujourd'hui
     const contact = b64encode({email: meta.guestEmail||'', phone: meta.guestPhone||''});
     return base + '?g=' + r.id + '&c=' + encodeURIComponent(contact);
   }
   // Repli (pas connecté ou Firebase indisponible) : on encode toute la recette dans le lien, comme avant.
   const payload = {
-    id:r.id, title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
+    id:r.id, ownerUid: CB.uid || '', title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
     referenceServings:r.referenceServings, servingUnit:r.servingUnit,
     prepTime:r.prepTime, cookingTime:r.cookingTime, restingTime:r.restingTime,
     ingredients:r.ingredients, steps:r.steps, nutrition:r.nutrition,
@@ -2591,7 +3153,7 @@ function renderGuestPage(payload){
     if(fbReady && payload.id){
       btn.disabled = true;
       btn.textContent = 'Envoi en cours…';
-      fbAddGuestReview(payload.id, {id:uid(), name, rating, comment, date:nowISO()})
+      fbAddGuestReview(payload.id, {id:uid(), name:name.slice(0,60), rating, comment:comment.slice(0,1000), date:nowISO(), kind:'invite'}, payload.ownerUid)
         .then(()=>{
           btn.textContent = '✓ Avis envoyé, merci !';
         })
@@ -2639,6 +3201,7 @@ function postRenderBind(){
   const shuffle = document.getElementById('featuredShuffle');
   if(shuffle) shuffle.addEventListener('click', (e)=>{ e.stopPropagation(); pickFeatured(true); render(); });
   bindRequestsEvents(app);
+  bindAccountEvents(app);
   const resumeBtn = document.getElementById('resumeCooking');
   if(resumeBtn) resumeBtn.onclick = resumeCooking;
   const abandonBtn = document.getElementById('abandonCooking');
@@ -2974,7 +3537,7 @@ function bindProfileEvents(app){
   if(signOutBtn) signOutBtn.onclick = ()=> fbSignOut();
   const publishBtn = document.getElementById('fbPublishBtn');
   if(publishBtn) publishBtn.onclick = ()=>{
-    if(!confirm('Publier toutes tes recettes locales en ligne ? Ça remplacera ce qui est déjà en ligne par la version de cet appareil.')) return;
+    if(!confirm('Publier en ligne toutes les recettes de ton carnet affichées ici ? Ça remplacera leur version en ligne.')) return;
     fbPublishAllRecipes().then(()=> toast('Recettes publiées en ligne !')).catch(()=> toast('Échec de la publication, vérifie ta connexion.'));
   };
   const exp = document.getElementById('exportBackup');
@@ -2996,7 +3559,11 @@ function bindProfileEvents(app){
     reader.onload = ()=>{
       try{
         const data = JSON.parse(reader.result);
-        if(data.recipes){ RECIPES = data.recipes; persistRecipes(); }
+        if(data.recipes){
+          if(!canEdit()){ toast('Ouvre ton carnet avec ton compte pour importer.'); return; }
+          RECIPES = data.recipes; persistRecipes();
+          if(fbReady) fbPublishAllRecipes().catch(()=> toast('Import fait ici, mais la publication en ligne a échoué.'));
+        }
         if(data.shopping){ SHOPPING = data.shopping; persistShopping(); }
         if(data.menu){ MENU = data.menu; persistMenu(); }
         toast('Sauvegarde importée avec succès');
@@ -3048,7 +3615,13 @@ function showGuestLinkError(msg){
     const hashGuest = location.hash.startsWith('#guest=') ? location.hash.slice(7) : null;
 
     if(qs.has('demande')){
-      renderRequestPage();
+      const owner = qs.get('demande') || '';
+      if(!fbReady || !owner || owner === '1'){ showGuestLinkError('Ce lien de demande est incomplet. Demande-en un nouveau.'); return; }
+      fbDb.ref('profiles/'+owner).once('value').then(snap=>{
+        const prof = snap.val();
+        if(prof && typeof prof.name === 'string') renderRequestPage(owner, prof.name);
+        else showGuestLinkError('Ce carnet n\'existe pas (ou plus).');
+      }).catch(()=> showGuestLinkError('Impossible de contacter le serveur. Vérifie ta connexion.'));
       return;
     }
     if(gParam !== null || hashG !== null){
@@ -3062,9 +3635,8 @@ function showGuestLinkError(msg){
         contact = sep===-1 ? {} : (b64decode(hashG.slice(sep+1)) || {});
       }
       if(fbReady){
-        fbDb.ref('recipes/'+recipeId).once('value').then(snap=>{
-          const r = sanitizeRecipe(snap.val());
-          if(r){ renderGuestPage({...r, email: contact.email||'', phone: contact.phone||''}); }
+        fbFindSharedRecipe(recipeId).then(({ownerUid, recipe})=>{
+          if(recipe){ renderGuestPage({...recipe, ownerUid, email: contact.email||'', phone: contact.phone||''}); }
           else { showGuestLinkError(); }
         }).catch(()=> showGuestLinkError('Impossible de contacter le serveur. Vérifie ta connexion.'));
       } else {
@@ -3088,6 +3660,14 @@ function showGuestLinkError(msg){
       if(saved && saved.view){ state.view = saved.view; state.params = saved.params || {}; }
     }
   }catch(viewErr){ console.error('Restauration de la page', viewErr); }
+  // Avec les comptes : on rouvre le carnet de la session en cours (actualisation), sinon on arrive sur la page de choix des carnets
+  let cbOpening = null;
+  if(fbReady){
+    let sess = null;
+    try{ sess = JSON.parse(sessionStorage.getItem(CB_SESSION_KEY) || 'null'); }catch(e){}
+    if(sess && sess.uid) cbOpening = Promise.race([openCookbook(sess.uid, sess.name), new Promise(res=>setTimeout(res, 6000))]);
+    else if(!['profile','shopping','accounts'].includes(state.view)) state.view = 'landing';
+  }
   try{
     render();
   }catch(renderErr){
@@ -3098,7 +3678,7 @@ function showGuestLinkError(msg){
       + '<p style="font-size:0.85rem">Essaie de recharger la page. Si ça persiste, exporte ta sauvegarde depuis un appareil où l\'app fonctionne, puis réimporte-la ici.</p>'
       + '</div>';
   }
-  try{
+  const restoreCookOverlay = ()=>{ try{
     const rawCook = sessionStorage.getItem(COOKING_STATE_KEY);
     if(rawCook){
       const savedCook = JSON.parse(rawCook);
@@ -3111,7 +3691,8 @@ function showGuestLinkError(msg){
         sessionStorage.removeItem(COOKING_STATE_KEY);
       }
     }
-  }catch(cookErr){ console.error('Restauration mode cuisine', cookErr); }
+  }catch(cookErr){ console.error('Restauration mode cuisine', cookErr); } };
+  if(cbOpening) cbOpening.then(restoreCookOverlay); else restoreCookOverlay();
 })();
 </script>
 </body>
