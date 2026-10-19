@@ -85,6 +85,10 @@ nav.bottomnav button.active svg{stroke:var(--terracotta);}
 .btn-block{width:100%;}
 .btn svg{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;}
 #startCooking svg{fill:currentColor;stroke:none;}
+.tag-filter-label{font-size:0.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--brown-soft);margin:2px 4px 0;}
+.tag-chip{padding:6px 12px;font-size:0.78rem;}
+.tag-chip .tag-n{opacity:.6;font-weight:600;margin-left:2px;}
+.pill-tag{border:0;cursor:pointer;font-family:inherit;}
 .pill{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--beige);color:var(--brown-soft);font-size:0.72rem;font-weight:700;}
 .pill-terracotta{background:var(--terracotta);color:#fff;}
 .card{background:var(--ivoire);border-radius:var(--radius-lg);box-shadow:var(--shadow);}
@@ -425,6 +429,31 @@ const CATEGORIES = ['Entrée','Plat','Dessert','Sauce','Accompagnement','Apérit
 const SUGGESTED_TAGS = ['Français','Italien','Espagnol','Mexicain','Asiatique','Japonais','Indien','Oriental','Américain',
   'Végétarien','Végan','Sans gluten','Rapide','Économique','Fait maison','Léger','Épicé','Sucré-salé',
   'Confort food','Fêtes','Été','Hiver','Enfants','Healthy','Fromage','Mijoté','Grillé'];
+/* Tags : un tag tapé à la main rejoint automatiquement la liste (sans doublon, accents/majuscules ignorés). */
+function tagKey(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+function allKnownTags(){
+  const seen = new Map();
+  SUGGESTED_TAGS.forEach(t=>{ if(!seen.has(tagKey(t))) seen.set(tagKey(t), t); });
+  (RECIPES||[]).forEach(r=>(r.tags||[]).forEach(t=>{ const k = tagKey(t); if(k && !seen.has(k)) seen.set(k, t); }));
+  return [...seen.values()].sort((a,b)=>a.localeCompare(b,'fr'));
+}
+function canonicalTag(raw){
+  const t = String(raw||'').trim().replace(/\s+/g,' ');
+  if(!t) return '';
+  const known = allKnownTags().find(x=>tagKey(x) === tagKey(t));
+  return known || (t.charAt(0).toUpperCase() + t.slice(1));
+}
+function addTagsToDraft(raw){
+  String(raw||'').split(',').forEach(part=>{
+    const t = canonicalTag(part);
+    if(t && !editDraft.tags.some(x=>tagKey(x) === tagKey(t))) editDraft.tags.push(t);
+  });
+}
+function libraryTagStats(){
+  const m = new Map();
+  (RECIPES||[]).forEach(r=>(r.tags||[]).forEach(t=>{ const k = tagKey(t); if(!k) return; const e = m.get(k) || {name:t, n:0}; e.n++; m.set(k, e); }));
+  return [...m.values()].sort((a,b)=> (b.n-a.n) || a.name.localeCompare(b.name,'fr'));
+}
 const QUICK_FILTERS = ['Tout','Entrées','Plats','Desserts','Sauces','Accompagnements','Apéritifs'];
 
 function uid(){ return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -656,7 +685,7 @@ function openCookbook(uid, name){
     CB = {uid, name: name || (prof && prof.name) || ''};
     try{ sessionStorage.setItem(CB_SESSION_KEY, JSON.stringify(CB)); }catch(e){}
     RECIPES = (uid === myUid()) ? readCbCache(uid) : [];
-    state.libraryFilter = 'Tout'; state.librarySearch = ''; state.homeSearch = '';
+    state.libraryFilter = 'Tout'; state.libraryTag = ''; state.librarySearch = ''; state.homeSearch = '';
     let first = true;
     const ref = fbDb.ref('cookbooks/'+uid);
     cbRef = ref;
@@ -921,6 +950,7 @@ let state = {
   view:'home',
   params:{},
   libraryFilter:'Tout',
+  libraryTag:'',
   librarySearch:'',
   homeSearch:'',
   servingsOverride:{},
@@ -1662,6 +1692,10 @@ function filteredRecipes(){
   if(state.libraryFilter !== 'Tout'){
     list = list.filter(r => catToFilter(r.category) === state.libraryFilter);
   }
+  if(state.libraryTag){
+    const k = tagKey(state.libraryTag);
+    list = list.filter(r => (r.tags||[]).some(t=>tagKey(t) === k));
+  }
   const q = (state.librarySearch||'').trim().toLowerCase();
   if(q){
     list = list.filter(r =>
@@ -1683,6 +1717,9 @@ function renderLibrary(){
   <div class="filters-row">
     ${QUICK_FILTERS.map(f=>`<button class="chip ${state.libraryFilter===f?'active':''}" data-filter="${f}">${f}</button>`).join('')}
   </div>
+  ${(()=>{ const st = libraryTagStats(); return st.length ? `<div class="tag-filter-label">Tags</div><div class="filters-row tag-row" style="padding-top:2px">
+    ${st.map(t=>`<button class="chip tag-chip ${tagKey(state.libraryTag)===tagKey(t.name)?'active':''}" data-tagfilter="${escapeHtml(t.name)}">${escapeHtml(t.name)} <span class="tag-n">${t.n}</span></button>`).join('')}
+  </div>` : ''; })()}
   ${list.length ? `<div class="recipe-grid">${list.map(r=>recipeCardHTML(r)).join('')}</div>`
     : emptyState('Aucune recette trouvée.', 'Essaie une autre recherche ou ajoute une recette.', canEdit()?'edit':null, null)}
   `;
@@ -1728,7 +1765,7 @@ function renderDetail(id){
     <h1 class="serif" style="font-size:1.6rem;margin:14px 0 6px">${escapeHtml(r.title)}</h1>
     <div class="detail-tags">
       <span class="pill pill-terracotta">${escapeHtml(r.category)}</span>
-      ${(r.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join('')}
+      ${(r.tags||[]).map(t=>`<button class="pill pill-tag" data-tagjump="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
     </div>
 
     <div class="detail-stats">
@@ -1891,6 +1928,189 @@ function renderHistory(id){
 
 /* ---------------- EDIT / CREATE ---------------- */
 let editDraft = null;
+
+/* ---------------- IA (Gemini, offre gratuite) : photos ou texte -> recette ---------------- */
+const AI_LOCAL_KEY = 'mcc_ai_key_v1';
+let aiKeyCache = null;
+let aiBusy = false;
+const AI_PROMPT = [
+"Tu es un transcripteur de recettes. Je t'envoie des photos de pages de livre de cuisine et/ou un texte de recette. Transforme-les en un texte brut, au format EXACT ci-dessous.",
+"",
+"RÈGLES DE FIDÉLITÉ",
+"- Transcris sans rien inventer : aucun ingrédient, aucune quantité, aucune étape, aucun temps qui ne soit dans la source.",
+"- Garde les quantités et le vocabulaire de la source. Ne reformule pas les étapes, découpe-les seulement en actions courtes.",
+"- Si une quantité est absente (ex : « 1 paquet », « gros sel », « poivre »), recopie-la telle quelle, ne devine pas.",
+"- Ignore le texte en caractères chinois/japonais, les numéros de page, les publicités et les commentaires.",
+"- Les sous-parties de la source (ex : « Sauce », « Farce », « Pâte ») deviennent des lignes seules, sans quantité, juste avant leurs ingrédients.",
+"- Le nombre de personnes ou de pièces ne va JAMAIS dans le titre : uniquement dans la section Portions.",
+"- Si la source n'est pas une recette, réponds uniquement : NON_RECETTE",
+"",
+"FORMAT DE SORTIE (texte brut uniquement : pas de markdown, pas de gras, pas de puces, pas de tirets, pas de bloc de code, aucun commentaire avant ou après) :",
+"",
+"[Titre de la recette]",
+"",
+"Catégorie",
+"",
+"[Une catégorie parmi : Entrée, Plat, Dessert, Sauce, Accompagnement, Apéritif, Petit-déjeuner, Boisson, Boulangerie, Pâtisserie], [mots-clés séparés par des virgules]",
+"",
+"Ingrédients",
+"",
+"[une ligne par ingrédient : quantité + unité + nom. Unités autorisées : g, kg, ml, cl, l, c. à soupe, c. à café, pincée, tranche, sachet — sinon pas d'unité. Pas de « de » ni « d' » entre l'unité et le nom (« 30 g sucre », « 1 gousse ail », « 2 c. à soupe huile de sésame »). Fractions écrites ½ ¼ ¾. Précisions entre parenthèses à la fin.]",
+"",
+"Préparation et cuisson",
+"",
+"[Titre de l'étape:]",
+"1. [une action par ligne, numérotée]",
+"2. ...",
+"",
+"Temps total",
+"",
+"Préparation: X min",
+"Cuisson: X min",
+"Repos: X min   (seulement si indiqué : trempage, marinade, réfrigération…)",
+"Total: X min   (somme des temps ci-dessus)",
+"",
+"Kilocalories totales du plat",
+"",
+"≈ X kcal",
+"",
+"Fiche nutritionnelle INCO — pour 100 g",
+"",
+"Énergie: X kcal / X kJ",
+"Lipides: X g (dont acides gras saturés: X g)",
+"Glucides: X g (dont sucres: X g)",
+"Fibres: X g",
+"Protéines: X g",
+"Sel: X g",
+"",
+"Portions",
+"",
+"[X personnes]   ou   [X pièces] si la source donne un nombre de pièces",
+"",
+"Notes",
+"",
+"[une seule phrase : « Nutrition estimée par IA » + l'hypothèse éventuelle sur une quantité manquante]",
+"",
+"RÈGLES DE FORMAT",
+"- Chaque titre de section est seul sur sa ligne, avec une ligne vide avant et après.",
+"- Titre d'étape : courte phrase terminée par deux-points, seule sur sa ligne.",
+"- Si la source donne une fourchette de temps (« 5 à 7 minutes »), mets le chiffre le plus haut dans la section Temps et garde la fourchette dans le texte de l'étape.",
+"- Virgule comme séparateur décimal (4,1 g).",
+"",
+"NUTRITION",
+"- Si la source donne des valeurs nutritionnelles, utilise-les. Sinon calcule-les à partir des ingrédients avec des valeurs moyennes (tables Ciqual).",
+"- Estime le poids final du plat cuit, ramène tout à 100 g, et vérifie la cohérence : kcal totales ≈ kcal/100 g × poids final / 100."
+].join('\n');
+
+function aiGetKey(){
+  if(aiKeyCache) return Promise.resolve(aiKeyCache);
+  if(!fbReady){
+    let k = ''; try{ k = localStorage.getItem(AI_LOCAL_KEY) || ''; }catch(e){}
+    aiKeyCache = k; return Promise.resolve(k);
+  }
+  if(!isAuthed || !isApproved) return Promise.resolve('');
+  return fbDb.ref('secrets/gemini').once('value')
+    .then(snap=>{ const v = snap.val(); if(typeof v === 'string' && v.trim()) aiKeyCache = v.trim(); return aiKeyCache || ''; })
+    .catch(()=>'');
+}
+function aiSaveKey(k){
+  k = String(k||'').trim();
+  aiKeyCache = k || null;
+  if(!fbReady){ try{ localStorage.setItem(AI_LOCAL_KEY, k); }catch(e){} return Promise.resolve(); }
+  if(!isAdmin) return Promise.reject(new Error('Réservé à l\'administrateur'));
+  return k ? fbDb.ref('secrets/gemini').set(k) : fbDb.ref('secrets/gemini').remove();
+}
+function aiCanConfigure(){ return !fbReady || isAdmin; }
+const AI_MODELS = ['gemini-flash-latest','gemini-flash-lite-latest'];
+/* Appelle Gemini ; essaie le modèle "flash" courant puis "flash-lite". Retourne le texte généré. */
+async function aiGenerate(parts){
+  const key = await aiGetKey();
+  if(!key){ const e = new Error('nokey'); e.code = 'nokey'; throw e; }
+  let lastErr = null;
+  for(const model of AI_MODELS){
+    let res;
+    try{
+      res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          systemInstruction:{parts:[{text:AI_PROMPT}]},
+          contents:[{role:'user', parts}],
+          generationConfig:{temperature:0.1}
+        })
+      });
+    }catch(netErr){ const e = new Error('network'); e.code = 'network'; throw e; }
+    if(res.ok){
+      const data = await res.json();
+      const cand = data && data.candidates && data.candidates[0];
+      const txt = cand && cand.content && cand.content.parts ? cand.content.parts.map(x=>x.text||'').join('') : '';
+      if(txt.trim()) return txt;
+      lastErr = new Error('empty'); lastErr.code = 'empty';
+      continue;
+    }
+    let msg = ''; try{ const j = await res.json(); msg = (j && j.error && j.error.message) || ''; }catch(e){}
+    const e = new Error(msg || ('HTTP '+res.status));
+    if(res.status === 429) e.code = 'quota';
+    else if(res.status === 400 && /API key|API_KEY/i.test(msg)) e.code = 'badkey';
+    else if(res.status === 401 || res.status === 403) e.code = 'badkey';
+    else if(res.status === 404 || res.status >= 500) e.code = 'model';
+    else e.code = 'other';
+    lastErr = e;
+    if(e.code === 'quota' || e.code === 'badkey') throw e;
+  }
+  throw lastErr || new Error('Échec IA');
+}
+function aiErrorMessage(e){
+  switch(e && e.code){
+    case 'nokey': return 'L\'IA n\'est pas encore activée (clé manquante).';
+    case 'badkey': return 'La clé IA est refusée par Google. Vérifie-la (ou ses restrictions de site).';
+    case 'quota': return 'Quota gratuit atteint pour le moment. Réessaie dans une minute, ou demain.';
+    case 'network': return 'Pas de connexion à l\'IA. Vérifie ton réseau.';
+    case 'empty': return 'L\'IA n\'a rien renvoyé. Essaie avec une photo plus nette.';
+    default: return 'L\'IA n\'a pas pu traiter ça. Réessaie dans un instant.';
+  }
+}
+function aiCleanOutput(txt){
+  return String(txt||'').replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'').trim();
+}
+function blobToBase64(dataUrl){ return String(dataUrl).replace(/^data:[^;]+;base64,/,''); }
+/* Remplit le brouillon à partir du résultat d'analyse (partagé entre « Coller » et l'IA). */
+function applyParsedToDraft(parsed){
+  if(parsed.title) editDraft.title = parsed.title;
+  if(parsed.category) editDraft.category = parsed.category;
+  if(parsed.tags && parsed.tags.length){ editDraft.tags = []; parsed.tags.forEach(t=>addTagsToDraft(t)); }
+  if(parsed.referenceServings) editDraft.referenceServings = parsed.referenceServings;
+  if(parsed.servingUnit) editDraft.servingUnit = parsed.servingUnit;
+  if(parsed.prepTime) editDraft.prepTime = parsed.prepTime;
+  if(parsed.cookingTime) editDraft.cookingTime = parsed.cookingTime;
+  if(parsed.restingTime) editDraft.restingTime = parsed.restingTime;
+  if(parsed.ingredients && parsed.ingredients.length) editDraft.ingredients = parsed.ingredients.map(i=>({id:uid(), ...i}));
+  if(parsed.steps && parsed.steps.length) editDraft.steps = parsed.steps.map(s=>({id:uid(), ...s}));
+  if(parsed.nutrition){
+    Object.keys(parsed.nutrition).forEach(k=>{
+      if(parsed.nutrition[k] !== null && parsed.nutrition[k] !== undefined) editDraft.nutrition[k] = parsed.nutrition[k];
+    });
+  }
+  if(parsed.personalComment) editDraft.personalComment = parsed.personalComment;
+}
+async function aiFillFromParts(parts, statusEl){
+  if(aiBusy) return;
+  aiBusy = true;
+  const setStatus = (t, err)=>{ if(statusEl){ statusEl.textContent = t; statusEl.style.color = err ? '#B23A2F' : 'var(--brown-soft)'; } };
+  try{
+    setStatus('Lecture par l\'IA en cours… (10 à 30 secondes)');
+    const raw = aiCleanOutput(await aiGenerate(parts));
+    if(/^NON_RECETTE/i.test(raw)){ setStatus('Je n\'ai pas trouvé de recette dans ça.', true); return; }
+    const parsed = parseFrenchRecipeText(raw);
+    if(!parsed.title && !(parsed.ingredients||[]).length){ setStatus('Lecture incomplète, réessaie avec une photo plus nette.', true); return; }
+    applyParsedToDraft(parsed);
+    aiBusy = false;
+    render();
+    toast('Recette lue par l\'IA — vérifie les champs avant d\'enregistrer');
+  }catch(e){
+    console.error('IA', e);
+    setStatus(aiErrorMessage(e), true);
+  }finally{ aiBusy = false; }
+}
 /* ---------------- IMPORT RECETTE "COLLER TOUT" ---------------- */
 /* Analyse un texte de recette collé en une fois et le découpe automatiquement
    en champs structurés (ingrédients, étapes, nutrition, etc.). Reconnaît les
@@ -2186,11 +2406,22 @@ function renderEdit(id){
   return `
   <div class="top-header-bar"><button class="icon-btn" data-back="1">${ICONS.back}</button><h2>${id?'Modifier la recette':'Nouvelle recette'}</h2></div>
 
+  ${!id ? `<div class="card ai-card" style="padding:16px;margin-bottom:14px;background:var(--beige)">
+    <div style="font-weight:800;font-size:0.92rem;margin-bottom:6px">📷 Recette par photo (IA)</div>
+    <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Photographie une page de livre (ou choisis jusqu'à 6 photos) : l'IA lit tout et remplit la recette ci-dessous, à vérifier avant d'enregistrer.</p>
+    <div id="aiBox"><p style="font-size:0.82rem;color:var(--brown-soft);margin:0">Chargement…</p></div>
+    <div id="aiStatus" style="font-size:0.82rem;margin-top:8px;font-weight:700"></div>
+  </div>` : ''}
+
   <div class="card" style="padding:16px;margin-bottom:20px;background:var(--beige)">
     <div style="font-weight:800;font-size:0.92rem;margin-bottom:6px">✨ Coller une recette entière</div>
     <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Colle tout le texte de ta recette (titre, ingrédients, étapes, etc.) — l'app la range automatiquement dans les bons champs ci-dessous, à vérifier avant d'enregistrer.</p>
     <textarea id="bulkPasteArea" placeholder="Colle ici toute ta recette…" style="min-height:110px"></textarea>
-    <button class="btn btn-primary btn-sm" id="bulkParseBtn" style="margin-top:10px">Analyser et remplir</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-primary btn-sm" id="bulkParseBtn">Analyser et remplir</button>
+      <button class="btn btn-outline btn-sm" id="aiTextBtn" style="display:none">✨ Structurer avec l'IA</button>
+    </div>
+    <p style="font-size:0.74rem;color:var(--brown-soft);margin:8px 0 0">« Analyser » suit le format de l'app. « Structurer avec l'IA » range n'importe quel texte (site, message…).</p>
   </div>
 
   <div class="field">
@@ -2214,11 +2445,12 @@ function renderEdit(id){
   <div class="field"><label class="field-label">Tags</label>
     <div class="tag-input-wrap" id="tagWrap">
       ${d.tags.map(t=>`<span class="tag">${escapeHtml(t)} <button data-rmtag="${escapeHtml(t)}" style="color:var(--brown-soft)">×</button></span>`).join('')}
-      <input type="text" id="tagInput" placeholder="Ajouter un tag + Entrée">
+      <input type="text" id="tagInput" list="tagList" placeholder="Ajouter un tag + Entrée">
+      <datalist id="tagList">${allKnownTags().filter(t=>!d.tags.some(x=>tagKey(x)===tagKey(t))).map(t=>`<option value="${escapeHtml(t)}"></option>`).join('')}</datalist>
     </div>
     <select id="tagSelect" style="margin-top:8px">
       <option value="">— Ou choisir un tag suggéré —</option>
-      ${SUGGESTED_TAGS.filter(t=>!d.tags.includes(t)).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+      ${allKnownTags().filter(t=>!d.tags.some(x=>tagKey(x)===tagKey(t))).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
     </select>
   </div>
 
@@ -3225,6 +3457,12 @@ function postRenderBind(){
   app.querySelectorAll('[data-filter]').forEach(el=>{
     el.onclick = ()=>{ state.libraryFilter = el.dataset.filter; render(); };
   });
+  app.querySelectorAll('[data-tagfilter]').forEach(el=>{
+    el.onclick = ()=>{ const t = el.dataset.tagfilter; state.libraryTag = (tagKey(state.libraryTag) === tagKey(t)) ? '' : t; render(); };
+  });
+  app.querySelectorAll('[data-tagjump]').forEach(el=>{
+    el.onclick = ()=>{ state.libraryTag = el.dataset.tagjump; state.libraryFilter = 'Tout'; state.librarySearch = ''; go('library'); };
+  });
 
   // DETAIL
   const startCook = document.getElementById('startCooking');
@@ -3313,7 +3551,71 @@ function history_back(){
 }
 
 /* ---------------- EDIT bindings ---------------- */
+function bindAiBox(){
+  const box = document.getElementById('aiBox');
+  const textBtn = document.getElementById('aiTextBtn');
+  if(!box && !textBtn) return;
+  const status = document.getElementById('aiStatus');
+  const canUse = (k)=>{
+    if(textBtn && k){
+      textBtn.style.display = '';
+      textBtn.onclick = ()=>{
+        const ta = document.getElementById('bulkPasteArea');
+        const text = ta ? ta.value.trim() : '';
+        if(!text){ toast('Colle d\'abord le texte de ta recette'); return; }
+        syncEditFields();
+        aiFillFromParts([{text:'Voici le texte de la recette :\n\n'+text}], status || {});
+        if(!status) toast('Lecture par l\'IA en cours…');
+      };
+    }
+  };
+  aiGetKey().then(key=>{
+    canUse(key);
+    if(!box) return;
+    if(key){
+      box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label class="btn btn-primary btn-sm" id="aiPhotoLabel" style="margin:0">📷 Photo(s)<input type="file" accept="image/*" multiple id="aiPhotoInput" class="visually-hidden-file"></label>
+          ${aiCanConfigure() ? '<button class="btn btn-ghost btn-sm" id="aiKeyChange">Changer la clé</button>' : ''}
+        </div>`;
+      const label = document.getElementById('aiPhotoLabel'), input = document.getElementById('aiPhotoInput');
+      label.onclick = (e)=>{ if(!e.isTrusted) return; e.preventDefault(); input.click(); };
+      input.onchange = async (e)=>{
+        const files = [...e.target.files].slice(0,6);
+        input.value = '';
+        if(!files.length) return;
+        syncEditFields();
+        try{
+          if(status){ status.textContent = 'Préparation des photos…'; status.style.color = 'var(--brown-soft)'; }
+          const urls = await Promise.all(files.map(f=>compressImageFile(f, 1600, 0.85)));
+          const parts = urls.map(u=>({inline_data:{mime_type:'image/jpeg', data:blobToBase64(u)}}));
+          parts.push({text:'Transcris la recette visible sur ces '+(urls.length>1?urls.length+' photos (pages successives de la même recette)':'photo')+'.'});
+          await aiFillFromParts(parts, status);
+        }catch(err){ if(status){ status.textContent = 'Impossible de lire ces photos.'; status.style.color = '#B23A2F'; } }
+      };
+      const ch = document.getElementById('aiKeyChange');
+      if(ch) ch.onclick = ()=>{ aiKeyCache = null; showKeyForm(); };
+    } else {
+      showKeyForm();
+    }
+  });
+  function showKeyForm(){
+    if(!box) return;
+    if(!aiCanConfigure()){
+      box.innerHTML = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:0">L'IA n'est pas encore activée : demande à l'administrateur d'ajouter la clé.</p>`;
+      return;
+    }
+    box.innerHTML = `<p style="font-size:0.8rem;color:var(--brown-soft);margin:0 0 8px">À faire une seule fois : crée une clé gratuite sur <b>aistudio.google.com/apikey</b> et colle-la ici${fbReady?' (elle sera partagée avec les comptes validés)':''}.</p>
+      <div style="display:flex;gap:8px"><input type="password" id="aiKeyInput" placeholder="Clé Gemini (AIza…)" autocomplete="off" style="flex:1"><button class="btn btn-primary btn-sm" id="aiKeySave">Enregistrer</button></div>`;
+    document.getElementById('aiKeySave').onclick = ()=>{
+      const v = document.getElementById('aiKeyInput').value.trim();
+      if(!v){ toast('Colle la clé d\'abord'); return; }
+      aiSaveKey(v).then(()=>{ toast('Clé enregistrée'); bindAiBox(); })
+        .catch(()=>toast('Impossible d\'enregistrer la clé (règles Firebase à jour ?)'));
+    };
+  }
+}
 function bindEditEvents(app){
+  bindAiBox();
   const bulkParseBtn = document.getElementById('bulkParseBtn');
   if(bulkParseBtn){
     bulkParseBtn.onclick = ()=>{
@@ -3323,22 +3625,7 @@ function bindEditEvents(app){
       syncEditFields();
       try{
         const parsed = parseFrenchRecipeText(text);
-        if(parsed.title) editDraft.title = parsed.title;
-        if(parsed.category) editDraft.category = parsed.category;
-        if(parsed.tags && parsed.tags.length) editDraft.tags = parsed.tags;
-        if(parsed.referenceServings) editDraft.referenceServings = parsed.referenceServings;
-        if(parsed.servingUnit) editDraft.servingUnit = parsed.servingUnit;
-        if(parsed.prepTime) editDraft.prepTime = parsed.prepTime;
-        if(parsed.cookingTime) editDraft.cookingTime = parsed.cookingTime;
-        if(parsed.restingTime) editDraft.restingTime = parsed.restingTime;
-        if(parsed.ingredients && parsed.ingredients.length) editDraft.ingredients = parsed.ingredients.map(i=>({id:uid(), ...i}));
-        if(parsed.steps && parsed.steps.length) editDraft.steps = parsed.steps.map(s=>({id:uid(), ...s}));
-        if(parsed.nutrition){
-          Object.keys(parsed.nutrition).forEach(k=>{
-            if(parsed.nutrition[k] !== null && parsed.nutrition[k] !== undefined) editDraft.nutrition[k] = parsed.nutrition[k];
-          });
-        }
-        if(parsed.personalComment) editDraft.personalComment = parsed.personalComment;
+        applyParsedToDraft(parsed);
         render();
         toast('Recette analysée — vérifie les champs avant d\'enregistrer');
       }catch(err){
@@ -3362,8 +3649,8 @@ function bindEditEvents(app){
     tagInput.onkeydown = (e)=>{
       if(e.key==='Enter' && tagInput.value.trim()){
         e.preventDefault();
-        editDraft.tags.push(tagInput.value.trim());
         syncEditFields();
+        addTagsToDraft(tagInput.value);
         render();
       }
     };
@@ -3376,7 +3663,7 @@ function bindEditEvents(app){
     tagSelect.onchange = ()=>{
       if(tagSelect.value){
         syncEditFields();
-        editDraft.tags.push(tagSelect.value);
+        addTagsToDraft(tagSelect.value);
         render();
       }
     };
