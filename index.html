@@ -85,6 +85,8 @@ nav.bottomnav button.active svg{stroke:var(--terracotta);}
 .btn-block{width:100%;}
 .btn svg{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;}
 #startCooking svg{fill:currentColor;stroke:none;}
+.ver-badge{display:inline-block;font-size:0.66rem;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--beige);color:var(--terracotta);vertical-align:middle;margin-left:2px;}
+.ver-pill{color:var(--terracotta) !important;font-weight:800;}
 .tag-filter-label{font-size:0.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--brown-soft);margin:2px 4px 0;}
 .tag-chip{padding:6px 12px;font-size:0.78rem;}
 .tag-chip .tag-n{opacity:.6;font-weight:600;margin-left:2px;}
@@ -761,7 +763,7 @@ function fbCopyRecipeToMine(r){
   const c = cleanForFirebase(r);
   c.id = uid();
   delete c.guestReviews; delete c.realizations; delete c.versions;
-  c.isFavorite = false; c.personalRating = null; c.personalComment = '';
+  c.isFavorite = false; c.personalRating = null; c.personalComment = ''; c.version = 1; delete c.versionNote; delete c.versionDate; delete c.personalCommentVersion;
   c.copiedFrom = {uid: CB.uid, name: CB.name, recipeId: r.id};
   c.createdAt = nowISO(); c.updatedAt = nowISO();
   return fbDb.ref().update({['cookbooks/'+u+'/'+c.id]: c, ['recipeOwners/'+c.id]: u}).then(()=> c);
@@ -840,7 +842,8 @@ function sanitizeRecipe(r){
   r.tags = toArray(r.tags);
   r.guestReviews = toArray(r.guestReviews);
   r.realizations = toArray(r.realizations);
-  r.versions = toArray(r.versions);
+  r.versions = toArray(r.versions).filter(v=>v && typeof v === 'object').map(v=>({...v, version:Number(v.version)||1, ingredients:toArray(v.ingredients), steps:toArray(v.steps), tags:toArray(v.tags), nutrition:(v.nutrition && typeof v.nutrition === 'object') ? v.nutrition : {}}));
+  r.version = Number(r.version) > 0 ? Number(r.version) : 1;
   r.nutrition = (r.nutrition && typeof r.nutrition === 'object') ? r.nutrition : {};
   r.category = r.category || 'Plat';
   r.referenceServings = r.referenceServings || 1;
@@ -1599,7 +1602,7 @@ function showReviewModal(r){
     const comment = document.getElementById('rvComment').value.trim();
     const msg = document.getElementById('rvMsg');
     if(!name){ msg.textContent = 'Indique ton prénom.'; return; }
-    const review = {id:uid(), name:name.slice(0,40), rating, comment:comment.slice(0,1000), date:nowISO(), kind: cook ? 'cuisinier' : 'invite'};
+    const review = {id:uid(), name:name.slice(0,40), rating, comment:comment.slice(0,1000), date:nowISO(), kind: cook ? 'cuisinier' : 'invite', version: r.version || 1};
     if(cook) review.uid = myUid();
     const btn = document.getElementById('rvSend');
     btn.disabled = true; btn.textContent = 'Envoi en cours…';
@@ -1767,6 +1770,7 @@ function renderDetail(id){
     <h1 class="serif" style="font-size:1.6rem;margin:14px 0 6px">${escapeHtml(r.title)}</h1>
     <div class="detail-tags">
       <span class="pill pill-terracotta">${escapeHtml(r.category)}</span>
+      <button class="pill pill-tag ver-pill" data-nav="history" data-histid="${r.id}" title="Voir les versions">v${r.version||1}${(r.versions||[]).length?' · historique':''}</button>
       ${(r.tags||[]).map(t=>`<button class="pill pill-tag" data-tagjump="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
     </div>
 
@@ -1817,7 +1821,7 @@ function renderDetail(id){
     ${renderGuestReviewsBlock(r)}
 
     ${r.personalComment ? `
-    <div class="section-title">Mon commentaire</div>
+    <div class="section-title">Mon commentaire ${versionBadge(r.personalCommentVersion)}</div>
     <div class="card" style="padding:16px"><p style="margin:0;color:var(--brown-soft);font-style:italic">${escapeHtml(r.personalComment)}</p></div>
     ` : ''}
 
@@ -1864,7 +1868,7 @@ function renderNutritionTable(r, serv){
 
 function historyItemHTML(h){
   return `<div class="history-item">
-    <div class="top"><span class="date">${fmtDate(h.date)}</span><span class="stars">★ ${h.rating}/10</span></div>
+    <div class="top"><span class="date">${fmtDate(h.date)} ${versionBadge(h.version)}</span><span class="stars">★ ${h.rating}/10</span></div>
     ${h.comment?`<p>"${escapeHtml(h.comment)}"</p>`:''}
     ${h.photos && h.photos[0] ? `<img src="${h.photos[0]}">` : ''}
   </div>`;
@@ -1911,7 +1915,7 @@ function renderGuestReviewsBlock(r){
       ${list.slice(0,6).map(g=>`
         <div style="padding:8px 0;border-top:1px solid var(--beige)">
           <div style="display:flex;justify-content:space-between;font-size:0.82rem;font-weight:700">
-            <span>${escapeHtml(g.name||'Invité')}${kindBadgeHTML(g.kind)}</span><span style="color:var(--gold)">★ ${g.rating}/10</span>
+            <span>${escapeHtml(g.name||'Invité')}${kindBadgeHTML(g.kind)} ${versionBadge(g.version)}</span><span style="color:var(--gold)">★ ${g.rating}/10</span>
           </div>
           ${g.comment?`<p style="margin:4px 0 0;font-size:0.85rem;color:var(--brown-soft);font-style:italic">"${escapeHtml(g.comment)}"</p>`:''}
         </div>`).join('')}
@@ -1920,16 +1924,110 @@ function renderGuestReviewsBlock(r){
   </div>`;
 }
 
+function versionContentHTML(v){
+  const ings = (v.ingredients||[]).map(i=>`<li>${i.quantity!=null && i.quantity!=='' ? escapeHtml(String(i.quantity))+(i.unit?' '+escapeHtml(i.unit):'')+' ' : ''}${escapeHtml(i.name||'')}</li>`).join('');
+  const stps = (v.steps||[]).map(x=>`<p style="margin:6px 0"><b>${escapeHtml(x.title||'')}</b><br>${escapeHtml(stripStepNumbers(x.content||''))}</p>`).join('');
+  return `<div style="font-size:0.84rem;color:var(--brown-soft);margin-top:8px">
+    <div style="font-weight:800;color:var(--brown)">Ingrédients (${escapeHtml(String(v.referenceServings||''))} ${escapeHtml(v.servingUnit||'personnes')})</div>
+    <ul style="margin:4px 0 8px;padding-left:18px">${ings}</ul>
+    <div style="font-weight:800;color:var(--brown)">Préparation</div>${stps}</div>`;
+}
 function renderHistory(id){
   const r = getRecipe(id);
   if(!r) return '';
   const list = [...(r.realizations||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const avg = avgRating(r);
+  const cur = r.version || 1;
+  const arch = [...(r.versions||[])].sort((a,b)=>b.version-a.version);
+  const statLine = (v)=>{ const st = versionStats(r, v); return `${st.n} réalisation${st.n>1?'s':''}${st.avg!==null?` · moyenne ★ ${st.avg.toFixed(1)}/10`:''} · ${st.avis} avis`; };
+  const curBlock = `<div class="card" style="padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>${versionBadge(cur)} Version actuelle</b><span style="font-size:0.78rem;color:var(--brown-soft)">${fmtDate(r.versionDate || r.createdAt || r.updatedAt)}</span></div>
+    ${r.versionNote ? `<p style="margin:6px 0 0;font-style:italic;color:var(--brown-soft)">« ${escapeHtml(r.versionNote)} »</p>` : ''}
+    <p style="margin:6px 0 0;font-size:0.8rem;color:var(--brown-soft)">${statLine(cur)}</p>
+  </div>`;
+  const archBlocks = arch.map(v=>`<div class="card" style="padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>${versionBadge(v.version)} Ancienne version</b><span style="font-size:0.78rem;color:var(--brown-soft)">${fmtDate(v.date)}</span></div>
+    ${v.note ? `<p style="margin:6px 0 0;font-style:italic;color:var(--brown-soft)">« ${escapeHtml(v.note)} »</p>` : ''}
+    <p style="margin:6px 0 0;font-size:0.8rem;color:var(--brown-soft)">${statLine(v.version)}</p>
+    <details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;color:var(--terracotta)">Voir cette version</summary>${versionContentHTML(v)}
+      ${canEdit() ? `<button class="btn btn-outline btn-sm" data-restore="${v.version}" style="margin-top:10px">Restaurer cette version</button>` : ''}
+    </details>
+  </div>`).join('');
   return `
   <div class="top-header-bar"><button class="icon-btn" data-back="1">${ICONS.back}</button><h2>Historique</h2></div>
-  <p style="color:var(--brown-soft);margin-top:-6px">${escapeHtml(r.title)} — ${list.length} réalisation${list.length>1?'s':''}${avg!==null?`, moyenne ★ ${avg.toFixed(1)}/10`:''}</p>
+  <p style="color:var(--brown-soft);margin-top:-6px">${escapeHtml(r.title)}</p>
+  <div class="section-title">Versions</div>
+  ${curBlock}${archBlocks || '<p style="color:var(--brown-soft);font-size:0.86rem">Pas d\'ancienne version : la recette n\'a pas encore été rectifiée.</p>'}
+  <div class="section-title">Réalisations${list.length?` (${list.length}${avg!==null?`, moyenne ★ ${avg.toFixed(1)}/10`:''})`:''}</div>
   ${list.length ? list.map(h=>historyItemHTML(h)).join('') : emptyState('Pas encore de réalisation enregistrée.', 'Cuisine cette recette pour commencer ton historique.', null, null)}
   `;
+}
+
+/* ---------------- VERSIONS DE RECETTE ---------------- */
+const VERSION_FIELDS = ['title','category','tags','referenceServings','servingUnit','prepTime','cookingTime','restingTime','ingredients','steps','nutrition'];
+function vNorm(x){ return (x === null || x === undefined || x === '') ? '' : String(x); }
+/* Empreinte du contenu "cuisine" d'une recette (ingrédients, étapes, portions, temps, nutrition) : sert à savoir si une nouvelle version se justifie. */
+function contentSignature(r){
+  const n = r.nutrition || {};
+  return JSON.stringify([
+    (r.ingredients||[]).map(i=>[vNorm(i.quantity), vNorm(i.unit), String(i.name||'').trim()]),
+    (r.steps||[]).map(x=>[String(x.title||'').trim(), String(x.content||'').trim()]),
+    vNorm(r.referenceServings), vNorm(r.servingUnit), vNorm(r.prepTime), vNorm(r.cookingTime), vNorm(r.restingTime),
+    Object.keys(n).sort().map(k=>[k, vNorm(n[k])]).filter(e=>e[1] !== '')
+  ]);
+}
+function snapshotOf(r){
+  const snap = {version: r.version || 1, note: r.versionNote || '', date: r.versionDate || r.createdAt || r.updatedAt || nowISO()};
+  VERSION_FIELDS.forEach(k=>{ if(r[k] !== undefined) snap[k] = JSON.parse(JSON.stringify(r[k])); });
+  return snap;
+}
+/* Archive la version actuelle de `r` (modifié sur place) et passe à la suivante. */
+function startNewVersion(r, old, note){
+  r.versions = [snapshotOf(old), ...(old.versions || [])];
+  r.version = (old.version || 1) + 1;
+  r.versionNote = String(note || '').slice(0,300);
+  r.versionDate = nowISO();
+}
+function versionStats(r, v){
+  const rl = (r.realizations||[]).filter(h=>(h.version||1) === v);
+  const avg = rl.length ? rl.reduce((a,x)=>a+x.rating,0)/rl.length : null;
+  const av = (r.guestReviews||[]).filter(g=>(g.version||1) === v);
+  return {n: rl.length, avg, avis: av.length};
+}
+function versionBadge(v){ return `<span class="ver-badge">v${v||1}</span>`; }
+function showVersionModal(orig, onChoice){
+  const root = document.getElementById('modalRoot');
+  const next = (orig.version||1) + 1;
+  root.innerHTML = `
+  <div class="modal-overlay" id="verOverlay">
+    <div class="modal">
+      <h3>Enregistrer les modifications</h3>
+      <p style="color:var(--brown-soft);margin-top:-8px">Tu as changé les ingrédients, les étapes, les temps ou la nutrition.</p>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-weight:700;margin:6px 0 12px;cursor:pointer">
+        <input type="checkbox" id="verNew" checked style="margin-top:3px;width:20px;height:20px;flex-shrink:0">
+        <span>Nouvelle version (v${next})<br><span style="font-weight:500;font-size:0.8rem;color:var(--brown-soft)">L'ancienne version v${orig.version||1} reste dans l'historique. Décoche pour une simple correction.</span></span>
+      </label>
+      <div class="field" id="verNoteField"><label class="field-label">Qu'est-ce qui change ? (optionnel)</label><input type="text" id="verNote" maxlength="300" placeholder="Ex. moins de sel, cuisson 5 min de plus"></div>
+      <button class="btn btn-primary btn-block" id="verOk">Enregistrer</button>
+      <button class="btn btn-outline btn-block" id="verCancel" style="margin-top:10px">Annuler</button>
+    </div>
+  </div>`;
+  const cb = document.getElementById('verNew');
+  cb.onchange = ()=>{ document.getElementById('verNoteField').style.display = cb.checked ? '' : 'none'; };
+  document.getElementById('verOk').onclick = ()=>{ const note = document.getElementById('verNote').value.trim(); const nv = cb.checked; root.innerHTML = ''; onChoice({newVersion:nv, note}); };
+  document.getElementById('verCancel').onclick = ()=>{ root.innerHTML = ''; };
+  document.getElementById('verOverlay').onclick = (e)=>{ if(e.target.id === 'verOverlay') root.innerHTML = ''; };
+}
+/* Restaure une ancienne version : elle devient une NOUVELLE version, rien n'est perdu. */
+function restoreVersion(r, v){
+  const snap = (r.versions||[]).find(x=>x.version === v);
+  if(!snap) return;
+  const old = JSON.parse(JSON.stringify(r));
+  VERSION_FIELDS.forEach(k=>{ if(snap[k] !== undefined) r[k] = JSON.parse(JSON.stringify(snap[k])); });
+  startNewVersion(r, old, 'Restauration de la v'+v);
+  r.updatedAt = nowISO();
+  persistRecipes();
+  fbSaveRecipe(r);
 }
 
 /* ---------------- EDIT / CREATE ---------------- */
@@ -2439,7 +2537,7 @@ function newDraft(){
     steps:[{id:uid(), title:'', content:''}],
     nutrition:{kcal100:'',kj100:'',fat100:'',satfat100:'',carbs100:'',sugar100:'',fiber100:'',protein100:'',salt100:'',finalWeight:''},
     personalRating:null, personalComment:'', privateNotes:'',
-    isFavorite:false, guestReviews:[], versions:[], realizations:[],
+    isFavorite:false, guestReviews:[], versions:[], version:1, realizations:[],
     createdAt:nowISO(), updatedAt:nowISO(),
   };
 }
@@ -3202,11 +3300,11 @@ function showRatingModal(r, opts){
   document.getElementById('saveRealization').onclick = ()=>{
     const comment = document.getElementById('ratingComment').value.trim();
     r.realizations = r.realizations || [];
-    r.realizations.unshift({id:uid(), date:nowISO(), rating, comment, photos: photoData?[photoData]:[]});
+    r.realizations.unshift({id:uid(), date:nowISO(), rating, comment, photos: photoData?[photoData]:[], version: r.version || 1});
     // met à jour note personnelle = moyenne pondérée simple si pas encore définie manuellement
     const avg = avgRating(r);
     if(avg !== null) r.personalRating = Math.round(avg*10)/10;
-    if(comment) r.personalComment = comment; // remonte dans "Mon commentaire"
+    if(comment){ r.personalComment = comment; r.personalCommentVersion = r.version || 1; } // remonte dans "Mon commentaire"
     r.updatedAt = nowISO();
     persistRecipes();
     fbSaveRecipe(r);
@@ -3293,7 +3391,7 @@ function buildGuestLink(r){
   }
   // Repli (pas connecté ou Firebase indisponible) : on encode toute la recette dans le lien, comme avant.
   const payload = {
-    id:r.id, ownerUid: CB.uid || '', title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
+    id:r.id, version:r.version||1, ownerUid: CB.uid || '', title:r.title, category:r.category, tags:r.tags||[], email: meta.guestEmail||'', phone: meta.guestPhone||'',
     referenceServings:r.referenceServings, servingUnit:r.servingUnit,
     prepTime:r.prepTime, cookingTime:r.cookingTime, restingTime:r.restingTime,
     ingredients:r.ingredients, steps:r.steps, nutrition:r.nutrition,
@@ -3458,7 +3556,7 @@ function renderGuestPage(payload){
     if(fbReady && payload.id){
       btn.disabled = true;
       btn.textContent = 'Envoi en cours…';
-      fbAddGuestReview(payload.id, {id:uid(), name:name.slice(0,60), rating, comment:comment.slice(0,1000), date:nowISO(), kind:'invite'}, payload.ownerUid)
+      fbAddGuestReview(payload.id, {id:uid(), name:name.slice(0,60), rating, comment:comment.slice(0,1000), date:nowISO(), kind:'invite', version: payload.version || 1}, payload.ownerUid)
         .then(()=>{
           btn.textContent = '✓ Avis envoyé, merci !';
         })
@@ -3537,6 +3635,15 @@ function postRenderBind(){
   // DETAIL
   const startCook = document.getElementById('startCooking');
   if(startCook) startCook.onclick = ()=> startCookingMode(state.params.id);
+  app.querySelectorAll('[data-restore]').forEach(el=>{
+    el.onclick = ()=>{
+      const r = getRecipe(state.params.id); const v = parseInt(el.dataset.restore);
+      if(!r || !canEdit()) return;
+      if(!confirm('Restaurer la v'+v+' ? Elle devient une nouvelle version (v'+((r.version||1)+1)+') et la version actuelle reste dans l\'historique.')) return;
+      restoreVersion(r, v);
+      toast('Version restaurée'); render();
+    };
+  });
   const markDone = document.getElementById('markDone');
   if(markDone) markDone.onclick = ()=>{
     const r = getRecipe(state.params.id);
@@ -3771,14 +3878,24 @@ function bindEditEvents(app){
     editDraft.steps = editDraft.steps.filter(s=>s.title.trim() || s.content.trim());
     editDraft.updatedAt = nowISO();
     delete editDraft._fresh;
-    const idx = RECIPES.findIndex(r=>r.id===editDraft.id);
-    if(idx>=0) RECIPES[idx] = editDraft; else RECIPES.push(editDraft);
-    persistRecipes();
-    fbSaveRecipe(editDraft);
-    const savedId = editDraft.id;
-    editDraft = null;
-    toast('Recette enregistrée');
-    go('detail', {id: savedId});
+    const orig = RECIPES.find(r=>r.id===editDraft.id);
+    const commit = (choice)=>{
+      if(orig){
+        if(choice && choice.newVersion) startNewVersion(editDraft, orig, choice.note);
+        else { editDraft.version = orig.version || 1; }
+        if(String(editDraft.personalComment||'') !== String(orig.personalComment||'')) editDraft.personalCommentVersion = editDraft.version || 1;
+      } else { editDraft.version = 1; }
+      const idx = RECIPES.findIndex(r=>r.id===editDraft.id);
+      if(idx>=0) RECIPES[idx] = editDraft; else RECIPES.push(editDraft);
+      persistRecipes();
+      fbSaveRecipe(editDraft);
+      const savedId = editDraft.id;
+      editDraft = null;
+      toast(choice && choice.newVersion ? 'Nouvelle version enregistrée' : 'Recette enregistrée');
+      go('detail', {id: savedId});
+    };
+    if(orig && contentSignature(orig) !== contentSignature(editDraft)) showVersionModal(orig, commit);
+    else commit(null);
   };
   const deleteBtn = document.getElementById('deleteRecipeBtn');
   if(deleteBtn) deleteBtn.onclick = ()=>{
