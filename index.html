@@ -1962,8 +1962,11 @@ const AI_PROMPT = [
 "Préparation et cuisson",
 "",
 "[Titre de l'étape:]",
-"1. [une action par ligne, numérotée]",
-"2. ...",
+"[une action courte par ligne]",
+"[une action courte par ligne]",
+"",
+"[Titre de l'étape suivante:]",
+"[une action courte par ligne]",
 "",
 "Temps total",
 "",
@@ -1995,7 +1998,14 @@ const AI_PROMPT = [
 "",
 "RÈGLES DE FORMAT",
 "- Chaque titre de section est seul sur sa ligne, avec une ligne vide avant et après.",
-"- Titre d'étape : courte phrase terminée par deux-points, seule sur sa ligne.",
+"- Titre d'étape : nom de la partie de la recette (ex : « Purée de patate douce », « Sauce », « Cuisson »), ou « Préparation » s'il n'y en a qu'une, terminé par deux-points, seul sur sa ligne.",
+"- Étapes : style télégraphique, à l'infinitif. UNE action par ligne, SANS numéro, SANS puce, SANS point final. Chaque action reprend les chiffres utiles : quantité de l'ingrédient concerné (quand elle figure dans la source), durée, température, feu.",
+"  Exemple de style attendu :",
+"  Couper 400 g de patate douce en cubes réguliers",
+"  Cuire départ eau froide salée 20 min",
+"  Égoutter",
+"  Écraser à chaud",
+"- N'ajoute aucun chiffre qui n'est pas dans la source.",
 "- Si la source donne une fourchette de temps (« 5 à 7 minutes »), mets le chiffre le plus haut dans la section Temps et garde la fourchette dans le texte de l'étape.",
 "- Virgule comme séparateur décimal (4,1 g).",
 "",
@@ -2227,7 +2237,7 @@ function parseFrenchRecipeText(content){
     }
     let currentTitle=null, currentContent=[];
     for(const l0 of lines){
-      const l = l0.trim().replace(/^[-•*]\s*/,'');
+      const l = l0.trim().replace(/^[-•*]\s*/,'').replace(/^\d{1,2}\s*[.)]\s+/,'');
       if(l.endsWith(':')){
         if(currentTitle!==null) steps.push({title:currentTitle, content:currentContent.join(' ').trim()});
         currentTitle = l.slice(0,-1).trim();
