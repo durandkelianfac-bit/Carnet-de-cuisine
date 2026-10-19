@@ -1820,6 +1820,9 @@ function renderDetail(id){
     <div class="section-title">Mon commentaire</div>
     <div class="card" style="padding:16px"><p style="margin:0;color:var(--brown-soft);font-style:italic">${escapeHtml(r.personalComment)}</p></div>
     ` : ''}
+
+    ${ownEdit() ? `<button class="btn btn-primary btn-block" id="markDone" style="margin:22px 0 6px">✓ Recette réalisée — noter après dégustation</button>
+    <p style="text-align:center;font-size:0.76rem;color:var(--brown-soft);margin:0 0 30px">Goûte d'abord, note ensuite : ça ajoute une réalisation avec ta note, un commentaire et une photo.</p>` : ''}
   </div>
   `;
 }
@@ -2113,7 +2116,7 @@ function applyParsedToDraft(parsed){
   if(parsed.cookingTime) editDraft.cookingTime = parsed.cookingTime;
   if(parsed.restingTime) editDraft.restingTime = parsed.restingTime;
   if(parsed.ingredients && parsed.ingredients.length) editDraft.ingredients = parsed.ingredients.map(i=>({id:uid(), ...i}));
-  if(parsed.steps && parsed.steps.length) editDraft.steps = parsed.steps.map(s=>({id:uid(), ...s}));
+  if(parsed.steps && parsed.steps.length) editDraft.steps = parsed.steps.map(s=>({id:uid(), ...s, content: String(s.content||'').replace(/(^|\s)\d{1,2}\s*[.)]\s+(?=[A-ZÀ-ÖØ-Þ])/g,'$1').replace(/\s{2,}/g,' ').trim()}));
   if(parsed.nutrition){
     Object.keys(parsed.nutrition).forEach(k=>{
       if(parsed.nutrition[k] !== null && parsed.nutrition[k] !== undefined) editDraft.nutrition[k] = parsed.nutrition[k];
@@ -2218,6 +2221,12 @@ function parseFrenchRecipeText(content){
     }
     return result;
   }
+  /* Retire toute numérotation « 1. 2. 3. » restée dans le texte d'une étape (même au milieu d'une ligne). */
+  function cleanStepText(t){
+    t = String(t||'');
+    if(/^\s*\d{1,2}\s*[.)]\s+/.test(t) || /(^|\s)2\s*[.)]\s+[A-ZÀ-ÖØ-Þ]/.test(t)) t = t.replace(/(^|\s)\d{1,2}\s*[.)]\s+(?=[A-Za-zÀ-ÿ«"'’(])/g, '$1');
+    return t.replace(/\s{2,}/g,' ').trim();
+  }
   function parseInstructionsBlock(block){
     const lines = block.split('\n').map(l=>l.trimEnd()).filter(l=>l.trim());
     const headersPresent = lines.some(l=>l.trim().replace(/^[-•*]\s*/,'').endsWith(':'));
@@ -2239,12 +2248,12 @@ function parseFrenchRecipeText(content){
     for(const l0 of lines){
       const l = l0.trim().replace(/^[-•*]\s*/,'').replace(/^\d{1,2}\s*[.)]\s+/,'');
       if(l.endsWith(':')){
-        if(currentTitle!==null) steps.push({title:currentTitle, content:currentContent.join(' ').trim()});
+        if(currentTitle!==null) steps.push({title:currentTitle, content:cleanStepText(currentContent.join(' '))});
         currentTitle = l.slice(0,-1).trim();
         currentContent = [];
       } else currentContent.push(l);
     }
-    if(currentTitle!==null) steps.push({title:currentTitle, content:currentContent.join(' ').trim()});
+    if(currentTitle!==null) steps.push({title:currentTitle, content:cleanStepText(currentContent.join(' '))});
     return steps;
   }
   function searchNum(pattern, text){ const m = text.match(pattern); return m ? normNum(m[1]) : null; }
@@ -2440,6 +2449,7 @@ function renderEdit(id){
     <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Photographie une page de livre (ou choisis jusqu'à 6 photos) : l'IA lit tout et remplit la recette ci-dessous, à vérifier avant d'enregistrer.</p>
     <div id="aiBox"><p style="font-size:0.82rem;color:var(--brown-soft);margin:0">Chargement…</p></div>
     <div id="aiStatus" style="font-size:0.82rem;margin-top:8px;font-weight:700"></div>
+    <div style="font-size:0.66rem;color:var(--brown-soft);opacity:.6;margin-top:6px">version du 19/10 · e</div>
   </div>` : ''}
 
   <div class="card" style="padding:16px;margin-bottom:20px;background:var(--beige)">
@@ -3117,20 +3127,37 @@ function finishCooking(){
   const r = getRecipe(state.cooking.recipeId);
   stopCookingMode();
   if(!r) return;
-  if(ownEdit()) showRatingModal(r);
-  else if(fbReady && !isOwnCookbook()) showReviewModal(r); // recette d'un autre carnet : on laisse un avis
+  if(ownEdit() || (fbReady && !isOwnCookbook())) showCookDoneModal(r);
   else toast('Bon appétit !');
+}
+/* Fin de recette : pas encore goûté ? On note plus tard avec le bouton « Recette réalisée » en bas de la fiche. */
+function showCookDoneModal(r){
+  const root = document.getElementById('modalRoot');
+  const mine = ownEdit();
+  root.innerHTML = `
+  <div class="modal-overlay" id="doneOverlay">
+    <div class="modal">
+      <h3>🎉 Recette terminée</h3>
+      <p style="color:var(--brown-soft);margin-top:-8px">Bon appétit ! ${mine ? 'Tu peux noter maintenant, ou après avoir goûté : le bouton « Recette réalisée » est en bas de la fiche.' : 'Tu peux laisser ton avis maintenant, ou après avoir goûté depuis la fiche.'}</p>
+      <button class="btn btn-primary btn-block" id="doneLater">Je goûte d'abord</button>
+      <button class="btn btn-outline btn-block" id="doneNow" style="margin-top:10px">${mine ? 'Noter maintenant' : 'Donner mon avis maintenant'}</button>
+    </div>
+  </div>`;
+  document.getElementById('doneLater').onclick = ()=>{ root.innerHTML = ''; go('detail', {id:r.id}); toast('Bon appétit !'); };
+  document.getElementById('doneNow').onclick = ()=>{ if(mine) showRatingModal(r); else showReviewModal(r); };
+  document.getElementById('doneOverlay').onclick = (e)=>{ if(e.target.id==='doneOverlay'){ root.innerHTML=''; go('detail', {id:r.id}); } };
 }
 
 /* ---------------- MODALS ---------------- */
-function showRatingModal(r){
+function showRatingModal(r, opts){
+  opts = opts || {};
   let rating = 8, photoData = '';
   const root = document.getElementById('modalRoot');
   root.innerHTML = `
   <div class="modal-overlay" id="ratingOverlay">
     <div class="modal">
-      <h3>🎉 Recette terminée</h3>
-      <p style="color:var(--brown-soft);margin-top:-8px">Comment était cette réalisation ?</p>
+      <h3>${opts.title || '🎉 Recette terminée'}</h3>
+      <p style="color:var(--brown-soft);margin-top:-8px">${opts.sub || 'Comment était cette réalisation ?'}</p>
       <div class="star-picker" id="starPicker">
         ${Array.from({length:11},(_,i)=>`<button data-star="${i}" class="${i===8?'sel':''}">${i}</button>`).join('')}
       </div>
@@ -3496,6 +3523,11 @@ function postRenderBind(){
   // DETAIL
   const startCook = document.getElementById('startCooking');
   if(startCook) startCook.onclick = ()=> startCookingMode(state.params.id);
+  const markDone = document.getElementById('markDone');
+  if(markDone) markDone.onclick = ()=>{
+    const r = getRecipe(state.params.id);
+    if(r) showRatingModal(r, {title:'😋 Recette réalisée', sub:'Alors, c\'était comment ?'});
+  };
   const ratingStat = document.getElementById('ratingStat');
   if(ratingStat) ratingStat.onclick = ()=>{
     const r = getRecipe(state.params.id);
