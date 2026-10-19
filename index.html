@@ -1828,6 +1828,7 @@ function renderDetail(id){
 }
 
 function renderStepText(text, refServ, targetServ){
+  text = stripStepNumbers(text);
   // recalcule les quantités selon les portions, puis détecte les durées "X min", "X secondes", "X h", "X à Y minutes"
   return escapeHtml(scaleStepQuantities(text, refServ, targetServ)).replace(/(\d+)(\s*(?:à|-)\s*(\d+))?\s*(heures?|h\b|min(?:ute)?s?|sec(?:onde)?s?)\b/gi, (m, n1, mid, n2, unitRaw)=>{
     const unit = unitRaw.toLowerCase();
@@ -2109,6 +2110,14 @@ function aiCleanOutput(txt){
     .trim();
 }
 function blobToBase64(dataUrl){ return String(dataUrl).replace(/^data:[^;]+;base64,/,''); }
+/* Retire une numérotation « 1. 2. 3. » restée dans le texte d'une étape. */
+function stripStepNumbers(t){
+  t = String(t||'');
+  const has = /^\s*\d{1,2}\s*[.)]\s+[A-Za-zÀ-ÿ«"'’(]/.test(t) || /(^|\s)2\s*[.)]\s+[A-ZÀ-ÖØ-Þ]/.test(t);
+  if(!has) return t;
+  return t.replace(/(^|\s)\d{1,2}\s*[.)]\s+(?=[A-Za-zÀ-ÿ«"'’(])/g, '$1').replace(/\s{2,}/g,' ').trim();
+}
+function hasStepNumbers(t){ return stripStepNumbers(t) !== String(t||'').replace(/\s{2,}/g,' ').trim() && stripStepNumbers(t) !== String(t||''); }
 /* Remplit le brouillon à partir du résultat d'analyse (partagé entre « Coller » et l'IA). */
 function applyParsedToDraft(parsed){
   if(parsed.title) editDraft.title = parsed.title;
@@ -2453,7 +2462,7 @@ function renderEdit(id){
     <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Photographie une page de livre (ou choisis jusqu'à 6 photos) : l'IA lit tout et remplit la recette ci-dessous, à vérifier avant d'enregistrer.</p>
     <div id="aiBox"><p style="font-size:0.82rem;color:var(--brown-soft);margin:0">Chargement…</p></div>
     <div id="aiStatus" style="font-size:0.82rem;margin-top:8px;font-weight:700"></div>
-    <div style="font-size:0.66rem;color:var(--brown-soft);opacity:.6;margin-top:6px">version du 19/10 · f</div>
+    <div style="font-size:0.66rem;color:var(--brown-soft);opacity:.6;margin-top:6px">version du 19/10 · g</div>
   </div>` : ''}
 
   <div class="card" style="padding:16px;margin-bottom:20px;background:var(--beige)">
@@ -2522,6 +2531,7 @@ function renderEdit(id){
     ${d.steps.map((s,i)=>stepFormBlock(s,i)).join('')}
   </div>
   <button class="btn btn-ghost btn-sm" id="addStepRow">${ICONS.plus} Ajouter une étape</button>
+  ${d.steps.some(st=>hasStepNumbers(st.content)) ? `<button class="btn btn-outline btn-sm" id="cleanStepNums" style="margin-left:8px">Retirer les « 1. 2. 3. » des étapes</button>` : ''}
 
   <div class="section-title">Nutrition (pour 100 g)</div>
   <div class="three-col">
@@ -3063,7 +3073,7 @@ function renderCookOverlay(){
     <div class="active-timers-bar" id="activeTimersBar"></div>
     <div class="cooking-content">
       <h2>${escapeHtml(step.title)}</h2>
-      <p>${escapeHtml(scaleStepQuantities(step.content, r.referenceServings, state.cooking.servings))}</p>
+      <p>${escapeHtml(scaleStepQuantities(stripStepNumbers(step.content), r.referenceServings, state.cooking.servings))}</p>
       ${durations.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
         ${durations.map(d=>`<button class="cooking-timer-suggest" data-launchtimer="${d.minutes}">${ICONS.clock} ${d.label}</button>`).join('')}
       </div>` : ''}
@@ -3739,6 +3749,13 @@ function bindEditEvents(app){
   app.querySelectorAll('[data-rming]').forEach(b=>{
     b.onclick = ()=>{ syncEditFields(); editDraft.ingredients.splice(parseInt(b.dataset.rming),1); render(); };
   });
+  const cleanNums = document.getElementById('cleanStepNums');
+  if(cleanNums) cleanNums.onclick = ()=>{
+    syncEditFields();
+    editDraft.steps.forEach(st=>{ st.content = stripStepNumbers(st.content); });
+    render();
+    toast('Numéros retirés — pense à enregistrer');
+  };
   const addStep = document.getElementById('addStepRow');
   if(addStep) addStep.onclick = ()=>{ syncEditFields(); editDraft.steps.push({id:uid(),title:'',content:''}); render(); };
   app.querySelectorAll('[data-rmstep]').forEach(b=>{
