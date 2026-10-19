@@ -2102,7 +2102,11 @@ function aiErrorMessage(e){
   }
 }
 function aiCleanOutput(txt){
-  return String(txt||'').replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'').trim();
+  return String(txt||'')
+    .replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'')
+    .replace(/\*\*|__/g,'')                                  // gras markdown
+    .split('\n').map(l=>l.replace(/^\s*#{1,6}\s+/,'').replace(/^\s*(?:[*•–—-]|\d{1,2}\s*[.)])\s+(?=\S)/,'').replace(/\s+:\s*$/,':').trimEnd()).join('\n')   // titres #, puces, numéros
+    .trim();
 }
 function blobToBase64(dataUrl){ return String(dataUrl).replace(/^data:[^;]+;base64,/,''); }
 /* Remplit le brouillon à partir du résultat d'analyse (partagé entre « Coller » et l'IA). */
@@ -2449,7 +2453,7 @@ function renderEdit(id){
     <p style="font-size:0.82rem;color:var(--brown-soft);margin:0 0 10px">Photographie une page de livre (ou choisis jusqu'à 6 photos) : l'IA lit tout et remplit la recette ci-dessous, à vérifier avant d'enregistrer.</p>
     <div id="aiBox"><p style="font-size:0.82rem;color:var(--brown-soft);margin:0">Chargement…</p></div>
     <div id="aiStatus" style="font-size:0.82rem;margin-top:8px;font-weight:700"></div>
-    <div style="font-size:0.66rem;color:var(--brown-soft);opacity:.6;margin-top:6px">version du 19/10 · e</div>
+    <div style="font-size:0.66rem;color:var(--brown-soft);opacity:.6;margin-top:6px">version du 19/10 · f</div>
   </div>` : ''}
 
   <div class="card" style="padding:16px;margin-bottom:20px;background:var(--beige)">
