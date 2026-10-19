@@ -521,6 +521,7 @@ const firebaseConfig = {
   appId: "1:1078852091191:web:f0012d41df62a2d8ab6eb2"
 };
 let fbAuth = null, fbDb = null, fbReady = false, isAuthed = false;
+let authResolved = false;
 let isApproved = false, isAdmin = false, myProfile = null, myAccountRequest = null, adminsExist = null;
 try{
   firebase.initializeApp(firebaseConfig);
@@ -899,13 +900,14 @@ if(fbReady && !isGuestPage){
   fbListenProfiles();
   fbAuth.onAuthStateChanged(user=>{
     isAuthed = !!user;
+    authResolved = true;
     if(user){
       isAdmin = isSuperEmail();
       fbListenMe(user.uid);
       fbListenCooking(user.uid);
     } else {
       fbStopMe(); fbStopRequests(); fbStopAccountRequests(); fbStopCooking();
-      isApproved = false; isAdmin = false; myProfile = null; myAccountRequest = null; superBootstrapping = false;
+      isApproved = false; isAdmin = false; myProfile = null; myAccountRequest = null; superBootstrapping = false; aiKeyCache = null;
     }
     try{ render(); }catch(e){}
   });
@@ -2002,23 +2004,40 @@ const AI_PROMPT = [
 "- Estime le poids final du plat cuit, ramène tout à 100 g, et vérifie la cohérence : kcal totales ≈ kcal/100 g × poids final / 100."
 ].join('\n');
 
-function aiGetKey(){
-  if(aiKeyCache) return Promise.resolve(aiKeyCache);
+let aiKeyError = '';
+/* Récupère la clé partagée. Attend que la connexion soit établie (sinon, juste après l'ouverture de la page,
+   on croirait à tort qu'il n'y a pas de clé). Ne mémorise jamais un échec. */
+async function aiGetKey(){
+  aiKeyError = '';
+  if(aiKeyCache) return aiKeyCache;
   if(!fbReady){
     let k = ''; try{ k = localStorage.getItem(AI_LOCAL_KEY) || ''; }catch(e){}
-    aiKeyCache = k; return Promise.resolve(k);
+    aiKeyCache = k; return k;
   }
-  if(!isAuthed || !isApproved) return Promise.resolve('');
-  return fbDb.ref('secrets/gemini').once('value')
-    .then(snap=>{ const v = snap.val(); if(typeof v === 'string' && v.trim()) aiKeyCache = v.trim(); return aiKeyCache || ''; })
-    .catch(()=>'');
+  const t0 = Date.now();
+  while(Date.now() - t0 < 6000){
+    if(authResolved && (!isAuthed || isApproved || isAdmin)) break;
+    await new Promise(r=>setTimeout(r, 150));
+  }
+  if(!isAuthed || !(isApproved || isAdmin)){ aiKeyError = 'noaccount'; return ''; }
+  try{
+    const snap = await fbDb.ref('secrets/gemini').once('value');
+    const v = snap.val();
+    if(typeof v === 'string' && v.trim()){ aiKeyCache = v.trim(); return aiKeyCache; }
+    aiKeyError = 'empty';
+  }catch(e){ aiKeyError = 'denied'; }
+  return '';
 }
-function aiSaveKey(k){
+/* Enregistre la clé (admin). Elle n'est mémorisée qu'une fois bien écrite ET relue en ligne. */
+async function aiSaveKey(k){
   k = String(k||'').trim();
-  aiKeyCache = k || null;
-  if(!fbReady){ try{ localStorage.setItem(AI_LOCAL_KEY, k); }catch(e){} return Promise.resolve(); }
-  if(!isAdmin) return Promise.reject(new Error('Réservé à l\'administrateur'));
-  return k ? fbDb.ref('secrets/gemini').set(k) : fbDb.ref('secrets/gemini').remove();
+  if(!fbReady){ try{ localStorage.setItem(AI_LOCAL_KEY, k); }catch(e){} aiKeyCache = k || null; return; }
+  if(!isAdmin) throw new Error('Réservé à l\'administrateur');
+  if(!k){ await fbDb.ref('secrets/gemini').remove(); aiKeyCache = null; return; }
+  await fbDb.ref('secrets/gemini').set(k);
+  const back = await fbDb.ref('secrets/gemini').once('value');
+  if(back.val() !== k) throw new Error('relecture');
+  aiKeyCache = k;
 }
 function aiCanConfigure(){ return !fbReady || isAdmin; }
 const AI_MODELS = ['gemini-flash-latest','gemini-flash-lite-latest'];
@@ -3604,13 +3623,14 @@ function bindAiBox(){
       box.innerHTML = `<p style="font-size:0.82rem;color:var(--brown-soft);margin:0">L'IA n'est pas encore activée : demande à l'administrateur d'ajouter la clé.</p>`;
       return;
     }
+    if(aiKeyError === 'denied'){ const st = document.getElementById('aiStatus'); if(st){ st.style.color = '#B23A2F'; st.textContent = 'Lecture de la clé refusée par Firebase : les règles ne sont sans doute pas à jour.'; } }
     box.innerHTML = `<p style="font-size:0.8rem;color:var(--brown-soft);margin:0 0 8px">À faire une seule fois : crée une clé gratuite sur <b>aistudio.google.com/apikey</b> et colle-la ici${fbReady?' (elle sera partagée avec les comptes validés)':''}.</p>
       <div style="display:flex;gap:8px"><input type="password" id="aiKeyInput" placeholder="Clé Gemini (AIza…)" autocomplete="off" style="flex:1"><button class="btn btn-primary btn-sm" id="aiKeySave">Enregistrer</button></div>`;
     document.getElementById('aiKeySave').onclick = ()=>{
       const v = document.getElementById('aiKeyInput').value.trim();
       if(!v){ toast('Colle la clé d\'abord'); return; }
-      aiSaveKey(v).then(()=>{ toast('Clé enregistrée'); bindAiBox(); })
-        .catch(()=>toast('Impossible d\'enregistrer la clé (règles Firebase à jour ?)'));
+      aiSaveKey(v).then(()=>{ toast('Clé enregistrée en ligne'); bindAiBox(); })
+        .catch(()=>{ const st = document.getElementById('aiStatus'); if(st){ st.style.color = '#B23A2F'; st.textContent = 'La clé n\'a PAS pu être enregistrée en ligne : les règles Firebase ne sont sans doute pas à jour (étape « Règles » à refaire avec le dernier fichier).'; } toast('Clé non enregistrée'); });
     };
   }
 }
